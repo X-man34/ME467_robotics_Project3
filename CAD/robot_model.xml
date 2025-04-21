@@ -22,7 +22,7 @@
 				<geom type="mesh" mesh="link2" rgba="0.2 0.6 0.8 1" pos=".0675 -.0675 .065"   xyaxes="-1 0 0 0 1 0"/>
 
 
-				<body name="frame2" pos="0 .250 0" xyaxes="0 1 0 -1 0 0">
+				<body name="frame2" pos=".250 0 0" xyaxes="1 0 0 0 1 0">
 					<geom type="mesh" mesh="link3" rgba="0.2 0.6 0.8 1" pos="-.674 0.741 -.04"   xyaxes="0 -1 0 1 0 0"/>
 					<joint name="joint2" type="hinge" axis="0 0 1" pos="0 0 0 "/>
 					<body name="frame3" pos=".07 0 0" xyaxes="1 0 0 0 0 1">

@@ -1,4 +1,4 @@
 By Caleb Hottes
 
 To install run
-> pip install mujoco, spatialmath-python
+> pip install mujoco, spatialmath-python, numpy
