@@ -26,12 +26,12 @@ def get_pose(data, body_id):
 
 if __name__ == "__main__":
     # Define the paramaters for this robot arm. 
-    dh_table = [[27.5, np.pi/2, 339],
-                [250, 0, 0],
-                [70, np.pi/2, 0],
-                [0, -np.pi/2, 250],
-                [0, np.pi/2, 0],
-                [0, 0, 95]
+    dh_table = [[True, 27.5, np.pi/2, 339],
+                [True, 250, 0, 0],
+                [True, 70, np.pi/2, 0],
+                [True, 0, -np.pi/2, 250],
+                [True, 0, np.pi/2, 0],
+                [True, 0, 0, 95]
                 ]
 
     # Create a kinematics object with the home angles and the DH table.
@@ -54,7 +54,8 @@ if __name__ == "__main__":
 
     print("Home position in kinematics:")
     print(mini_bot_kinematrics.foreward(home_angles))
-
+    np.set_printoptions(suppress=True)
+    print(mini_bot_kinematrics.jacobian())
 
     # Verify the kinematrics agree with mujoco at the position for question 1.
     question_1_angles = np.array([0, deg2rad(90), 0, 0, deg2rad(-90), 0]) 
@@ -67,6 +68,8 @@ if __name__ == "__main__":
     print("Quesiton 1 position from kinematics:")
     print(mini_bot_kinematrics.foreward(question_1_angles))
     
+
+
     # transformation = mini_bot_kinematrics.foreward(question_1_angles)
     # print(transformation)
     # print(mini_bot_kinematrics.transformation_to_project_pose_vector(transformation))
