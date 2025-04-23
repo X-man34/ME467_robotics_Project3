@@ -35,7 +35,7 @@ if __name__ == "__main__":
                 ]
 
     # Create a kinematics object with the home angles and the DH table.
-    mini_bot_kinematrics = Kinematics(home_angles, dh_table)
+    mini_bot_kinematics = Kinematics(home_angles, dh_table)
 
     # Load the mujoco model for answer verification. 
     xml_path = Path("CAD") / "robot_model.xml"
@@ -53,12 +53,21 @@ if __name__ == "__main__":
     print(mujoco_home_pose)
 
     print("Home position in kinematics:")
-    print(mini_bot_kinematrics.foreward(home_angles))
+    print(mini_bot_kinematics.foreward(home_angles))
     np.set_printoptions(suppress=True)
-    print(mini_bot_kinematrics.jacobian())
+    test_angles = np.array([np.pi/4, np.pi/2, 0, 0, 0, 0])
+    jacobian_at_home = mini_bot_kinematics.jacobian(joint_angles=test_angles)
+    
+    #for a test lets just let the first joint have some speed and let all the rest be zero
+    joint_vels = np.array([1,0,0,0,0,0])
+    twist = jacobian_at_home @ joint_vels
+    print("Twist is: ")
+    print(twist)
+    
 
     # Verify the kinematrics agree with mujoco at the position for question 1.
     question_1_angles = np.array([0, deg2rad(90), 0, 0, deg2rad(-90), 0]) 
+
     mujoco_model_data.qpos[:len(question_1_angles)] = question_1_angles
     mj.mj_forward(model, mujoco_model_data)
     mujoco_question_one_pose = get_pose(mujoco_model_data, end_effector_body_id)
@@ -66,27 +75,29 @@ if __name__ == "__main__":
     print(mujoco_question_one_pose)
 
     print("Quesiton 1 position from kinematics:")
-    print(mini_bot_kinematrics.foreward(question_1_angles))
+    print(mini_bot_kinematics.foreward(question_1_angles))
     
-
-
-    # transformation = mini_bot_kinematrics.foreward(question_1_angles)
-    # print(transformation)
-    # print(mini_bot_kinematrics.transformation_to_project_pose_vector(transformation))
-
-
-
-
-    # # To not repeat code, if for some reason you don't want to watch the awsome visualization and just want to see the boring plots, it will open the viewer and them immediately close it. 
-    # # I just don't know how else to do it without repeating the for loop outside the with statement. 
-    # with mujoco.viewer.launch_passive(model, mujoco_model_data) as viewer:
-    #     # viewer.cam.azimuth = 180  # Looking along X-axis
-    #     viewer.cam.distance *= 2.0 
-    #     mujoco_model_data.qpos[:len(question_1_angles)] = question_1_angles
-    #     mj.mj_forward(model, mujoco_model_data)
-    #     viewer.sync()
-    #     print(get_pose(mujoco_model_data, end_effector_body_id))
-    #     while True:
-    #         if not viewer.is_running():
-    #             break
-    #         time.sleep(.001)
+    try:
+        with mujoco.viewer.launch_passive(model, mujoco_model_data) as viewer:
+            # viewer.cam.azimuth = 180  # Looking along X-axis
+            viewer.cam.distance *= 2.0 
+            print("Performing inverse kinematics")
+            results = mini_bot_kinematics.inverse(mini_bot_kinematics.foreward(home_angles), gain=-.1, max_iterations=1000)
+            print("results")
+            print(results[1])
+            mujoco_model_data.qpos[:len(results[0])] = results[0]
+            mj.mj_forward(model, mujoco_model_data)
+            viewer.sync()
+            print(get_pose(mujoco_model_data, end_effector_body_id))
+            while True:
+                if not viewer.is_running():
+                    break
+                time.sleep(.001)
+                # mj.mj_step(model, mujoco_model_data)
+                viewer.sync()
+        
+        
+        
+    except KeyboardInterrupt:
+        print("Keyboard interrupt received. Closing viewer...")
+        viewer.close()

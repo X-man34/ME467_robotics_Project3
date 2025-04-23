@@ -52,7 +52,7 @@ class Kinematics:
         else:
             return final_transformation
     
-    def transformation_to_project_pose_vector(self, transformation: SE3) -> np.ndarray:
+    def transformation_to_minimal_representation(self, transformation: SE3) -> np.ndarray:
         """
         Given a transformation matrix, return a vector representing it in the format asked by the project. 
         Args:
@@ -76,7 +76,7 @@ class Kinematics:
             np.ndarray: Pose vector of the end effector.
         """
         transformation = self.foreward(joint_angles)
-        return self.transformation_to_project_pose_vector(transformation)
+        return self.transformation_to_minimal_representation(transformation)
     
     def jacobian(self, **kwargs):
         """
@@ -115,3 +115,36 @@ class Kinematics:
 
             j[:, i - 1] = np.hstack((j_v, j_omega)).T
         return j
+    
+
+    def inverse(self, desired_pose: SE3, convergence_threshold = .01, gain=1, max_iterations=20)-> list: 
+        """
+        Performs a numerical search to determine the set of joint angles that most optimally puts the end-effector at the desired pose. 
+        implements both the jacobian transpose method. 
+        Args:
+            desired_pose (SE(3)): the pose we are trying to get to
+            convergence_threshold: if specified will set the maximum magnitude of an update before convergence is decided
+            max_iterations: if specified is an alternative exit condition to prevent blocking if it cannot converge. 
+            gain: a number that controls the step size. 
+
+
+        """
+
+        # Goal 
+        goal_pose = self.transformation_to_minimal_representation(desired_pose)
+
+        # Come up with initial guess
+        q = np.random.uniform(0, 2 * np.pi, size=6)
+
+        converging = True
+        iters = 0
+        while converging:
+            update = gain * ((self.jacobian(joint_angles=q).T) @ (self.transformation_to_minimal_representation(self.foreward(q)) - goal_pose))
+            q = q + update
+            iters += 1
+            error = np.linalg.norm(update)
+            print(f"Error at iteration {iters} is {error}")
+            if error < convergence_threshold:
+                return q, "Converged in {iters} iterations, final error: {error}"
+            if iters > max_iterations:
+                return q, f"Was unable to converge, exited after {iters} iterations, final error was: {error}"

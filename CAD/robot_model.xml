@@ -19,9 +19,7 @@
 
 			<body name="frame1" pos=".0275 0 .339" xyaxes="1 0 0 0 0 1">
 				<joint name="joint1" type="hinge" axis="0 0 1" pos="0 0 0 "/>
-				<geom type="mesh" mesh="link2" rgba="0.2 0.6 0.8 1" pos=".0675 -.0675 .065"   xyaxes="-1 0 0 0 1 0"/>
-
-
+				<geom type="mesh" mesh="link2" rgba="0.2 0.6 0.8 1" pos="-.0675 .0675 .045"   xyaxes="0 -1 0 1 0 0"/>
 				<body name="frame2" pos=".250 0 0" xyaxes="1 0 0 0 1 0">
 					<geom type="mesh" mesh="link3" rgba="0.2 0.6 0.8 1" pos="-.674 0.741 -.04"   xyaxes="0 -1 0 1 0 0"/>
 					<joint name="joint2" type="hinge" axis="0 0 1" pos="0 0 0 "/>
@@ -43,61 +41,12 @@
 				</body>
 			</body>
 		</body>
-		
-		
-
-		
-		
-		<!-- <body name="frame1" pos="0 0 1.2" xyaxes="1 0 0 0 0 1">
-			<joint name="joint1" type="hinge" axis="0 1 0" pos="0 0 0"/>
-			<inertial diaginertia=".000001 .000000001 .000001" pos="0 0 0" mass=".0000000001"/>
-			<site name="frame1site" pos="0 0 0" size=".005" rgba="1 0 0 1" type="sphere"/>
-			<body name="frame2" pos="0 0 .8" xyaxes="1 0 0 0 0 1">
-				<joint name="joint2" type="hinge" axis="0 1 0" pos="0 0  0 "/>
-				<geom type="cylinder" size=".1 0.4" pos="0 -.4 0" xyaxes="1 0 0 0 0 1" rgba="0 .9 0 0.7"/>
-				<geom type="cylinder" size=".075 0.4" pos="0 0 .4" xyaxes="1 0 0 0 1 0" rgba="0 .9 0 0.7"/>
-				<site name="frame2-sensor" pos="0 0 0" size=".005" rgba="1 0 0 1" type="sphere"/>
-				<body name="end-effector" pos="0 0 .8" xyaxes="0 -1 0 1 0 0">
-					<site name="end-effector-sensor" pos="0 0 0" size=".005" rgba="1 0 0 1" type="sphere"/>
-				</body>
-			</body>
-		</body> -->
 	</worldbody>
 
 
+	<keyframe>
+	<key name="home" qpos="0 1.570796327 0 0 0 0"/><!-- theta1, theta2-->
+	</keyframe>
 
 </mujoco>
 
-<!-- 
-	<actuator>
-		<motor name="joint1-actuator" joint="joint1"/>
-	</actuator>
-
-	<sensor>
-		<velocimeter name="body-linear-vel-c" site="end-effector-sensor"/><!-- from docs: "This element creates a 3-axis velocimeter. 
-		The sensor is mounted at a site, and has the same position and orientation as the site frame. This sensor outputs three numbers,
-		which are the linear velocity of the site in local coordinates." so this is the body linear velocity of the end effector with respect to the world frame-->
-		<gyro name="body-ang-vel-c" site="end-effector-sensor"/><!--- body angular velcoity of the end effector wrt the world frame, this will need to be converted into a spatial velocity for use on Q4-->
-		<gyro name="body-ang-vel-1" site="frame1site"/>
-
-
-
-		<!-- Body velocities: expressed in the frame 2 (body) frame -->
-		<velocimeter name="body-linear-vel-2" site="frame2-sensor"/>
-		<gyro name="body-ang-vel-2" site="frame2-sensor"/>
-
-		<!-- Joint sensors for additional verification -->
-		<jointpos name="joint1-position" joint="joint1"/>
-		<jointpos name="joint2-position" joint="joint2"/>
-
-		<jointvel name="joint1-velocity" joint="joint1"/>
-		<jointvel name="joint2-velocity" joint="joint2"/>
-
-
-
-	</sensor>
-	
-		<keyframe>
-		<key name="home" qpos="1.570796327 0"/>
-		<key name="Q1" qpos="2.617993878 -1.346396852"/>
-		</keyframe> -->
