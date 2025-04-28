@@ -6,8 +6,20 @@ import time
 from spatialmath import SE3, SO3
 from numpy import deg2rad
 from kinematics import Kinematics
-home_angles = np.array([0, np.pi/2, 0, 0, 0, 0])
 
+
+  
+# Import stuff and define some functions. Other code I wrote is imported from python files. 
+
+import mujoco as mj
+from pathlib import Path
+import numpy as np
+import mujoco.viewer
+import time
+from spatialmath import SE3, SO3
+from spatialmath.base import tr2adjoint
+from numpy import deg2rad
+from kinematics import Kinematics
 
 def get_pose(data, body_id):
     """
@@ -24,7 +36,90 @@ def get_pose(data, body_id):
     transformation[:3, 3] = pos 
     return SE3(transformation)
 
+def geometric_inverse(desired_pose: SE3)-> list:
+    """
+    Given a desired pose, return the joint angles that achieve it.
+    Uses hardcoded values and geometric methods to find the joint angles. 
+    """
+    #get the position of the wrist center. 
+    wrist_center = desired_pose.t - 95 * desired_pose.R @ np.array([0, 0, 1])
+
+    d = 27.5
+    r = np.sqrt(wrist_center[0]**2 + wrist_center[1]**2) - d# Projected distance from joint 2 to wrist center in x0 y0 plane. 
+    s = wrist_center[2] - 339
+    theta1 = np.arctan2(wrist_center[1], wrist_center[0])
+
+    # Now we need to find theta 2 and 3. These are independent of theta1
+    
+    a2 = 250
+    a3 = np.sqrt(70**2 + 250**2)
+    extra_theta3 = np.pi - np.arctan(250/70)
+
+
+
+    #We find theta3 using the law of cosines. 
+    theta3 = np.arccos((r**2 + s**2 - a2**2 - a3**2) / (-2 * a2 * a3)) - extra_theta3
+
+    print(theta3)
+    theta2a = np.arctan2(s, r) - np.arctan2(a3 * np.sin(theta3), a2 + a3 * np.cos(theta3))
+    print(theta2a)
+    # theta2b = np.arctan2(s, r) - np.arctan2(a3 * np.sin(theta3b), a2 + a3 * np.cos(theta3b))
+
+    return [theta1, theta2a, theta3, 0, 0, 0]
+
+
+def geometric_inverse(desired_pose: np.ndarray)-> list:
+    """
+    Given a desired pose, return the joint angles that achieve it.
+    Uses hardcoded values and geometric methods to find the joint angles. 
+    """
+    #get the position of the wrist center. d
+    desired_translation = desired_pose[:3,3]
+    desired_rotation = desired_pose[:3, :3]
+    wrist_center = desired_translation - 95 * desired_rotation @ np.array([0, 0, 1])
+
+    d = 27.5
+    r = np.sqrt(wrist_center[0]**2 + wrist_center[1]**2) - d# Projected distance from joint 2 to wrist center in x0 y0 plane. 
+    s = wrist_center[2] - 339
+    theta1 = np.arctan2(wrist_center[1], wrist_center[0])
+
+    # Now we need to find theta 2 and 3. These are independent of theta1
+    
+    a2 = 250
+    a3 = np.sqrt(70**2 + 250**2)
+    extra_theta3 = np.pi - np.arctan(250/70)
+
+
+
+    #We find theta3 using the law of cosines. 
+    cosT3 = 1 / (2 * a2 * a3) * (r**2 + s**2 - a2**2 - a3**2)
+
+    theta3a = np.arctan2(np.sqrt(1 - cosT3**2), cosT3)
+    theta3b = np.arctan2(-np.sqrt(1 - cosT3**2), cosT3)
+
+    print(theta3a)
+    theta2a = np.arctan2(s, r) - np.arctan2(a3 * np.sin(theta3), a2 + a3 * np.cos(theta3))
+    print(theta2a)
+    # theta2b = np.arctan2(s, r) - np.arctan2(a3 * np.sin(theta3b), a2 + a3 * np.cos(theta3b))
+
+    return [theta1, theta2a, theta3, 0, 0, 0]
+
+    
 if __name__ == "__main__":
+    
+    # Helps with printouts. 
+    np.set_printoptions(suppress=True)
+
+    # Load the mujoco model for answer verification. 
+    xml_path = Path("CAD") / "robot_model.xml"
+    model = mj.MjModel.from_xml_path(str(xml_path))
+    mujoco_model_data = mj.MjData(model)
+
+
+    end_effector_body_name="end-effector"
+    end_effector_body_id = model.body(name=end_effector_body_name).id
+
+
     # Define the paramaters for this robot arm. 
     dh_table = [[True, 27.5, np.pi/2, 339],
                 [True, 250, 0, 0],
@@ -34,70 +129,41 @@ if __name__ == "__main__":
                 [True, 0, 0, 95]
                 ]
 
+    home_angles = np.array([0, np.pi/2, 0, 0, 0, 0])
     # Create a kinematics object with the home angles and the DH table.
     mini_bot_kinematics = Kinematics(home_angles, dh_table)
+    # Compute the transformation of a known position for use later. 
+    home_pos = mini_bot_kinematics.foreward(home_angles)
 
-    # Load the mujoco model for answer verification. 
-    xml_path = Path("CAD") / "robot_model.xml"
-    model = mj.MjModel.from_xml_path(str(xml_path))
-    mujoco_model_data = mj.MjData(model)
+    given_transformation = np.array([[.7551, .4013, .5184, 399.1255], 
+                                    [.6084, -.7235, -.3262, 171.01526], 
+                                    [.2441, .5617, -.7905, 416.0308], 
+                                    [0, 0, 0, 1]])
 
-    end_effector_body_name="end-effector"
-    end_effector_body_id = model.body(name=end_effector_body_name).id
+    given_transformation = mini_bot_kinematics.foreward(joint_angles=home_angles).A
+    asdf = geometric_inverse(given_transformation)
+    print(asdf)
 
-    # Verify the kinematrics agree with mujoco at the home position.
-    mujoco_model_data.qpos[:len(home_angles)] = home_angles
-    mj.mj_forward(model, mujoco_model_data)
-    mujoco_home_pose = get_pose(mujoco_model_data, end_effector_body_id)
-    print("Home position in mujoco:")
-    print(mujoco_home_pose)
 
-    print("Home position in kinematics:")
-    print(mini_bot_kinematics.foreward(home_angles))
-    np.set_printoptions(suppress=True)
-    test_angles = np.array([np.pi/4, np.pi/2, 0, 0, 0, 0])
-    jacobian_at_home = mini_bot_kinematics.jacobian(joint_angles=test_angles)
-    
-    #for a test lets just let the first joint have some speed and let all the rest be zero
-    joint_vels = np.array([1,0,0,0,0,0])
-    twist = jacobian_at_home @ joint_vels
-    print("Twist is: ")
-    print(twist)
-    
 
-    # Verify the kinematrics agree with mujoco at the position for question 1.
-    question_1_angles = np.array([0, deg2rad(90), 0, 0, deg2rad(-90), 0]) 
-
-    mujoco_model_data.qpos[:len(question_1_angles)] = question_1_angles
-    mj.mj_forward(model, mujoco_model_data)
-    mujoco_question_one_pose = get_pose(mujoco_model_data, end_effector_body_id)
-    print("Question 1 position in mujoco:")
-    print(mujoco_question_one_pose)
-
-    print("Quesiton 1 position from kinematics:")
-    print(mini_bot_kinematics.foreward(question_1_angles))
-    
-    try:
-        with mujoco.viewer.launch_passive(model, mujoco_model_data) as viewer:
-            # viewer.cam.azimuth = 180  # Looking along X-axis
-            viewer.cam.distance *= 2.0 
-            print("Performing inverse kinematics")
-            results = mini_bot_kinematics.inverse(mini_bot_kinematics.foreward(home_angles), gain=-.1, max_iterations=1000)
-            print("results")
-            print(results[1])
-            mujoco_model_data.qpos[:len(results[0])] = results[0]
-            mj.mj_forward(model, mujoco_model_data)
-            viewer.sync()
-            print(get_pose(mujoco_model_data, end_effector_body_id))
-            while True:
-                if not viewer.is_running():
-                    break
-                time.sleep(.001)
-                # mj.mj_step(model, mujoco_model_data)
-                viewer.sync()
+    # try:
+    #     with mujoco.viewer.launch_passive(model, mujoco_model_data) as viewer:
+    #         # viewer.cam.azimuth = 180  # Looking along X-axis
+    #         viewer.cam.distance *= 2.0 
+    #         asdf = geometric_inverse(home_pos)
+    #         # mujoco_model_data.qpos[:6] = [0,np.pi/4, 0, 0, 0, 0]
+    #         mujoco_model_data.qpos[:6] = asdf
+    #         mj.mj_forward(model, mujoco_model_data)
+    #         viewer.sync()
+    #         while True:
+    #             if not viewer.is_running():
+    #                 break
+    #             time.sleep(.001)
+    #             # mj.mj_step(model, mujoco_model_data)
+    #             viewer.sync()
         
         
         
-    except KeyboardInterrupt:
-        print("Keyboard interrupt received. Closing viewer...")
-        viewer.close()
+    # except KeyboardInterrupt:
+    #     print("Keyboard interrupt received. Closing viewer...")
+    #     viewer.close()

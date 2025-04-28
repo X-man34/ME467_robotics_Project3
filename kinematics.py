@@ -45,8 +45,8 @@ class Kinematics:
                 transformation = SE3().Rz(joint_angles[i]) * SE3().Tz(row[3]) * SE3().Tx(row[1]) * SE3().Rx(row[2])
             else:
                 transformation = SE3().Rz(row[3]) * SE3().Tz(joint_angles[i]) * SE3().Tx(row[1]) * SE3().Rx(row[2])#untested
-            transformations.append(transformation)
             final_transformation *= transformation
+            transformations.append(final_transformation.copy())
         if return_intermediate:
             return transformations
         else:
@@ -78,46 +78,46 @@ class Kinematics:
         transformation = self.foreward(joint_angles)
         return self.transformation_to_minimal_representation(transformation)
     
-    def jacobian(self, **kwargs):
+    def jacobian(self, joint_angles, link):
         """
         Computes the jacobian matrix for a given state. 
         If not passed any args it will use self.last_pose which is the last pose seen by foreward or the home position by default. 
         To specify a custom position pass a set of joint anges into "joint_angles"
         You can also compute the jacobian at an intermidiate link by passing a number into link
+        the prismatic case is untested, but hopefully is simple enough that it works first try. 
         Kwargs:
            joint_angles (list):  the pose to evaluate the jacobian at. 
            link:  the intermediate link to comput the jacobian at. Must be less than the length of the DH table
         """
-        if "joint_angles" in kwargs:
-            transformations = self.foreward(kwargs.get("joint_angles"), return_intermediate=True)
-        else:
-            transformations = self.last_pose
+        transformations = self.foreward(joint_angles, return_intermediate=True)
 
-        link = kwargs.get("link", len(self.dh_table))
         if link > len(self.dh_table):
             raise ValueError("Link number must be less than length of DH table. ")
+        
+        J = np.zeros((6, link))
+        o_n = transformations[-1].t  # Position of end-effector
 
-        j = np.zeros((6, link))
-
-        for i in range(1, link + 1):
+        for i in range(link):
             # For each link
-            dh_row = self.dh_table[i - 1]
-            z_less_one = transformations[i - 1].R @ np.array([0,0,1])
-
+            dh_row = self.dh_table[i]
+            T_i = transformations[i]
+            R_i = T_i.R
+            o_i = T_i.t
+            z_i = R_i @ np.array([0,0,1])  # z-axis of frame i
             if dh_row[0]:
                 # Revolute
-                j_omega = z_less_one
-                j_v = np.linalg.cross(z_less_one, transformations[i].t - transformations[i - 1].t)
+                J_angular = z_i
+                J_linear = np.cross(z_i, o_n - o_i)
             else:
                 # Prismatic
                 j_omega = np.zeros(3)
-                j_v = z_less_one
+                j_v = z_i
 
-            j[:, i - 1] = np.hstack((j_v, j_omega)).T
-        return j
-    
+            J[:3, i] = J_linear
+            J[3:, i] = J_angular
+        return J
 
-    def inverse(self, desired_pose: SE3, convergence_threshold = .01, gain=1, max_iterations=20)-> list: 
+    def inverse(self, desired_pose: SE3, joint_angles_guess, convergence_threshold = .01, gain=1, max_iterations=20)-> list: 
         """
         Performs a numerical search to determine the set of joint angles that most optimally puts the end-effector at the desired pose. 
         implements both the jacobian transpose method. 
@@ -133,18 +133,17 @@ class Kinematics:
         # Goal 
         goal_pose = self.transformation_to_minimal_representation(desired_pose)
 
-        # Come up with initial guess
-        q = np.random.uniform(0, 2 * np.pi, size=6)
+        q = joint_angles_guess
 
         converging = True
         iters = 0
         while converging:
-            update = gain * ((self.jacobian(joint_angles=q).T) @ (self.transformation_to_minimal_representation(self.foreward(q)) - goal_pose))
+            update = gain * ((self.jacobian(joint_angles=q, link=6).T) @ (goal_pose - self.transformation_to_minimal_representation(self.foreward(q))))
             q = q + update
             iters += 1
             error = np.linalg.norm(update)
             print(f"Error at iteration {iters} is {error}")
             if error < convergence_threshold:
-                return q, "Converged in {iters} iterations, final error: {error}"
+                return q, f"Converged in {iters} iterations, final error: {error}"
             if iters > max_iterations:
                 return q, f"Was unable to converge, exited after {iters} iterations, final error was: {error}"
