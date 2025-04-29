@@ -1,9 +1,9 @@
 import numpy as np
-from spatialmath import SE3, SO3
+from spatialmath import SE3
 
 
 
-class Kinematics:
+class DHKinematics:
     def __init__(self, home_joint_angles, dh_table):
         """
         Initialize the Kinematics class with initial joint angles and DH parameters.
