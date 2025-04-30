@@ -7531,6 +7531,22 @@ a.anchor-link {
     text-align: right;
     font-size: 18px;
   }
+  .image-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .image-row figure {
+    flex: 1;
+    text-align: center;
+  }
+
+  .image-row img {
+    width: 100%;
+    height: auto;
+  }
 </style>
 <div class="titleBig">
   ME 467 Robotics Project 3
@@ -7543,13 +7559,16 @@ a.anchor-link {
   Date: 4/29/2025<br/>
   Class: ME 467<br/>
 </div>
-<p>In this project the foreward and inverse position and velocity level kinematics of the NeXCoM 6-DoF miniBoT will be solved. Answers will then be verified with mujoco and other means.</p>
-<h2 id="Question-1"><strong>Question 1</strong><a class="anchor-link" href="#Question-1">¶</a></h2><p>This question is about the foreward and inverse kinematics of the robot. Once coordinate frames are chose and Denavit-Hartenberg (DH) parameters are determined, it is trivial to compute the foreward kinematics.
+<p>In this project, the forward and inverse position and velocity level kinematics of the NeXCOM 6-DoF miniBoT will be solved.  The solutions will then be verified using MuJoCo simulations and other methods.</p>
+<p>The initial focus is on position-level kinematics, specifically addressing both forward and inverse problems.  Coordinate frames are assigned using the Denavit-Hartenberg (DH) convention and DH parameters are determined.  This setup allows for a straightforward computations of the foreward kinematics.  The inverse kinematics problem is approached using a closed-form geometric method, which is well-suited to this particular robot's DH parameter configuration.  The implementation of this geometric inverse function accounts for potential singularities and employs a computational strategy to handle multiple possible solutions.  The core challenge in inverse kinematics is to accurately determine the joint angles required to achieve a desired end-effector pose, given the complexities introduced by numerous edge cases.</p>
+<p>Velocity-level kinematics are also addressed, involving the computation of the Jacobian matrix. The Jacobian relates joint angle rates to end-effector spatial twist, and its computation is crucial for determining the joint velocities required for desired end-effector motion.</p>
+<h2 id="Question-1-Position-level-kinematics"><strong>Question 1-Position level kinematics</strong><a class="anchor-link" href="#Question-1-Position-level-kinematics">¶</a></h2><p>This question is about the foreward and inverse kinematics of the robot. Once coordinate frames are chose and Denavit-Hartenberg (DH) parameters are determined, it is trivial to compute the foreward kinematics.
 The coordinate frames were assigned and Denavit-Hartenberg parameters chosen as seen below.</p>
 <figure>
 <img alt="Diagram of coordinate frame placement and DH parameters" src="resources/coordDiagram.png" width="800"/>
 <figcaption>Figure 1: Diagram of coordinate frame placement and DH parameters</figcaption>
 </figure>
+<p>Below some preliminary variables are created to drive the rest of the code.</p>
 </div>
 </div>
 </div>
@@ -7558,7 +7577,7 @@ The coordinate frames were assigned and Denavit-Hartenberg parameters chosen as 
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [192]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">mujoco</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">mj</span><span class="o">,</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="o">,</span><span class="w"> </span><span class="nn">time</span>
@@ -7576,7 +7595,7 @@ The coordinate frames were assigned and Denavit-Hartenberg parameters chosen as 
 
 <span class="n">model</span> <span class="o">=</span> <span class="n">mj</span><span class="o">.</span><span class="n">MjModel</span><span class="o">.</span><span class="n">from_xml_path</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"mujoco_files"</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"robot_model.xml"</span><span class="p">))</span>
 <span class="n">data</span> <span class="o">=</span> <span class="n">mj</span><span class="o">.</span><span class="n">MjData</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-<span class="n">ee_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">body</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"end-effector"</span><span class="p">)</span><span class="o">.</span><span class="n">id</span>
+<span class="n">end_effector_body_id</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">body</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"end-effector"</span><span class="p">)</span><span class="o">.</span><span class="n">id</span>
 
 <span class="c1"># Define the Denavit-Hartenberg (DH) parameters for this robot arm. </span>
 <span class="n">dh_table</span> <span class="o">=</span> <span class="p">[[</span><span class="kc">True</span><span class="p">,</span> <span class="mf">27.5</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="mi">339</span><span class="p">],</span>
@@ -7631,7 +7650,7 @@ $$A_i = \mathcal{R}_z(\theta_i)\,\mathcal{T}_z(d_i)\,\mathcal{T}_x(a_i)\,\mathca
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [25]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [193]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">question_1_angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">deg2rad</span><span class="p">(</span><span class="mi">90</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">deg2rad</span><span class="p">(</span><span class="o">-</span><span class="mi">90</span><span class="p">),</span> <span class="mi">0</span><span class="p">])</span> 
@@ -7664,16 +7683,13 @@ $$A_i = \mathcal{R}_z(\theta_i)\,\mathcal{T}_z(d_i)\,\mathcal{T}_x(a_i)\,\mathca
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=511c948b">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=f0eb1ed4">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="(b)-Inverse-position-kinematics">(b) Inverse position kinematics<a class="anchor-link" href="#(b)-Inverse-position-kinematics">¶</a></h2><p>The instructions say "Solve the position-level inverse kinematics of the problem in closed-form.
-Provide the expressions for the joint angles in terms of the given end-effector pose in
-your submission. Use this solution to find the joint angles whenever the end-effector
-pose is given by <strong>ξ</strong> = (<strong>R</strong>,<strong>t</strong>), where
+<h2 id="(b)-Inverse-Position-Kinematics">(b) Inverse Position Kinematics<a class="anchor-link" href="#(b)-Inverse-Position-Kinematics">¶</a></h2><p>The instructions specify solving the position-level inverse kinematics of the problem in closed-form. The expressions for the joint angles in terms of the given end-effector pose are to be provided. This solution is then used to find the joint angles for the end-effector pose given by $\mathbf{\xi} = (\mathbf{R}, \mathbf{t})$, where
 $$
 R =
 \begin{bmatrix}
@@ -7689,119 +7705,115 @@ t =
 416.0308
 \end{bmatrix}
 $$</p>
-<p>Here the inverse kinematics are solved using a closed form geometric method. This method is specific to this robot/set of DH parameters. The geometric inverse function has been extensively but not fully tested and may break down at singularities. When performing geometric inverse kinematics a problem presents itself: There are many edge cases and no one formula can cover all of them, so how does one get the correct answers no matter the input?
-There are two basic approaches to this problem:</p>
+<p>The inverse kinematics are solved here through a closed-form geometric method, tailored to this specific robot's Denavit-Hartenberg parameters. While extensively tested, the geometric inverse function might encounter limitations at singularities. A fundamental challenge in geometric inverse kinematics is the presence of numerous edge cases, making a single universal formula impractical. Consequently, the determination of correct solutions across all inputs necessitates a robust strategy.</p>
+<p>Two primary approaches exist for this problem:</p>
 <ul>
-<li>Use logic to decide which formula will work</li>
-<li>Try all permutations of angles and use those which work</li>
+<li>Employing logical conditions to select the appropriate formula.</li>
+<li>Evaluating all permutations of potential angles and selecting valid resulting configurations.</li>
 </ul>
-<p>Given that writing logic could be complex and prone to error, I opted to play to the strengths of a computer--computation--and go with the brute force method.
-There is no one formula used, but many formulas are used to compute many possible theta combinations, then all the combinations are tested and only valid combinations are returned.</p>
-<p>We are given $(R,o)$ the desired rotation and translation of the end-effector and asked the joint angles that create that pose. There are a few stages to the process:</p>
+<p>Given the potential complexity and error susceptibility of implementing intricate logical conditions, a computational approach is adopted, leveraging the processing power of a computer to explore multiple possibilities. Rather than a singular formula, several formulas are utilized to compute many joint angle combinations. Subsequently, each combination undergoes validation, and only those yielding the desired end-effector pose are retained as valid solutions.</p>
+<p>The objective is to find the joint angles that produce a given end-effector pose $(\mathbf{R}, \mathbf{o})$, representing the desired rotation and translation. The process involves several stages:</p>
 <ol>
 <li><p><span style="font-size: 24px;">Decoupling</span></p>
-<p>The wrist center $o_c$ is the point of intersection of the joint axes of the spherical wrist. The position of this point only depends on the angles of the first three joints $\theta_1, \theta_2, \theta_3$ Knowing this allows us to "decouple" the position and orientation calculations into two separate problems.</p>
-<p>To find the wrist center we use the fact that its position is constant wrt. the end-effector</p>
-<p>$$\mathbf{o_c}=\mathbf{o} - d_6 \mathbf{R_z}$$
-where $d_6$ is a DH parameter</p>
+<p>The wrist center $\mathbf{o}_c$ is defined as the intersection point of the joint axes of the spherical wrist. Its position is solely dependent on the first three joint angles, $\theta_1, \theta_2, \theta_3$. This characteristic allows for the "decoupling" of the position and orientation inverse kinematics problems into two independent sub-problems.</p>
+<p>The wrist center's position is found by exploiting its constant relationship with respect to the end-effector frame:</p>
+<p>$$\mathbf{o_c}=\mathbf{o} - d_6 \mathbf{R} \mathbf{z}$$
+where $d_6$ is a Denavit-Hartenberg parameter and $\mathbf{z} = \begin{bmatrix} 0 &amp; 0 &amp; 1 \end{bmatrix}^T$ is the z-axis of the end-effector frame.</p>
 </li>
 <li><p><span style="font-size: 24px;">Geometry</span></p>
-<p>The next task is to use the geometry of this robot to determine the first three angles, and thus the rotation matrix ${}^0R_3$</p>
-<h4 id="Derivation-of-$%5Ctheta_1$">Derivation of $\theta_1$<a class="anchor-link" href="#Derivation-of-$%5Ctheta_1$">¶</a></h4><p>Examining fig. 2 we notice by inspection that
-$$\theta_1=\operatorname{atan2}(y_c, x_c)$$
-The articulated offset prevents $\theta_1=\operatorname{atan2}(y_c, x_c) + \pi$ from being a solution because the arm can't quite reach over the axis $z_1$ when its turned around the other way.</p>
+<p>The subsequent task involves utilizing the robot's geometric structure to determine the first three joint angles, which allows for the construction of the rotation matrix ${}^0R_3$.</p>
+<h4 id="Derivation-of-$%5Ctheta_1$">Derivation of $\theta_1$<a class="anchor-link" href="#Derivation-of-$%5Ctheta_1$">¶</a></h4><p>Observation of the robot's geometry in figure 2 reveals that the first joint angle $\theta_1$ can be directly computed from the wrist center's x and y coordinates in the base frame:</p>
+<p>$$\theta_1=\operatorname{atan2}(y_c, x_c)$$</p>
 <figure>
 <img alt="Isometric view of first three links" src="resources/inverseKinematicsDiagram.png" width="800"/>
 <figcaption>Figure 2: Isometric view of first three links </figcaption>
 </figure>
-<h4 id="Derivation-of-$%5Ctheta_3$">Derivation of $\theta_3$<a class="anchor-link" href="#Derivation-of-$%5Ctheta_3$">¶</a></h4><p>First define:</p>
+<p>The articulated configuration of the robot prevents there being two solutions separated by 180° as there would be in a non-articulated robot.</p>
+<h4 id="Derivation-of-$%5Ctheta_3$">Derivation of $\theta_3$<a class="anchor-link" href="#Derivation-of-$%5Ctheta_3$">¶</a></h4><p>Several parameters are first defined:</p>
 <ul>
-<li>$d$-The offset of the arm DH parameter $d_1$ = 27.5 mm</li>
-<li>$r$-The projected distance from joint 2 to the wrist center in the $x_0,y_0$ plane.</li>
-<li>$s$-The height of the wrist center above the second joint.</li>
-<li>$\alpha$-A constant angle (in code called <code>extra_theta3_large</code>) which has the value 105.64°</li>
-<li>$\beta$-Another constant in angle, (<code>extra_theta3_small</code> in code) which has the value 74.36°</li>
+<li>$d$: The offset of the first link, $d_1 = 27.5$ mm.</li>
+<li>$r$: The projected distance from the second joint to the wrist center in the $x_0y_0$ plane.</li>
+<li>$s$: The height of the wrist center above the second joint.</li>
+<li>$\alpha$: A constant angle, approximately $105.64^\circ$.</li>
+<li>$\beta$: Another constant angle, approximately $74.36^\circ$.</li>
 </ul>
-<p>As can be seen from fig. 2 and fig. 1:</p>
+<p>From the robot's geometric relations (fig. 2), the following equations are derived:</p>
 <p>$$r=\sqrt{x_c^2 + y_c^2} - d$$
 $$s = z_c - d_1$$
 $$a_3 = \sqrt{a_3^2 + d_4^2}=\sqrt{70^2 + 250^2}$$</p>
+<p>In the configuration shown in fig 3. the angle $\theta_3$ is related to an intermediate angle $C$ through $\theta_3 = C - \alpha$. By applying the law of cosines, $cos(C)$ is found:</p>
+<p>$$cos(C)=\frac {1} {-2 a_2 a_3} (r^2 + s^2 - a_2^2 - a_3^2) := D$$</p>
 <figure>
 <img alt="Projected view of links 2 and 3 from joint 2's frame." src="resources/articulatedReference.png" width="1200"/>
 <figcaption>Figure 3: Projected view of links 2 and 3 from joint 2's frame. </figcaption>
 </figure>
-<p>For configuration shown above we see that $\theta_3=C-\alpha$. By the law of cosines we find that
-$$cos(C)=\frac {1} {-2 a_2 a_3} (r^2 + s^2 - a_2^2 - a_3^2) := D$$</p>
-<p>However $cos(x)$ is not injective, so we need to use $\operatorname{atan2}(x)$ and the pythagorean trig identity to account for this yielding:</p>
+<p>Due to the non-injectivity of the cosine function, the $\operatorname{atan2}$ function and the Pythagorean trigonometric identity are used to find $C$:</p>
 <p>$$C=\operatorname{atan2}(\pm\sqrt{1 - D}, D)$$
-$$\theta_3 = \operatorname{atan2}(\pm\sqrt{1 - D}, D) - \alpha$$</p>
-<p>This equation only represents two solutions, but so far six have been identified for $\theta_3$. During testing with random joint values, various configurations were encountered which had somewhat different geometry. Essentially by changing the $s$ and $r$ dimensions (moving the wrist center) scenarios arise where the relation $\theta_3=C-\alpha$ is no longer valid. Upon debugging various scenarios that broke the code, two other relations were found, one of which involves $\beta$, another constant angle defined above. The angle $C$ is calculated the same way for all the angles.</p>
-<p>Thus, accounting for the $\pm$ in the $\operatorname{atan2}$ formula, there are siz total formulas, the abbreviated versions of which are shown below:</p>
-<p>$$\theta_3=C-\alpha$$
-$$\theta_{3} = \pi - C + \beta$$
+This yields two initial solutions for $\theta_3$:</p>
+<p>$$\theta_3 = \operatorname{atan2}(\pm\sqrt{1 - D}, D) - \alpha$$</p>
+<p>Further geometric analysis reveals additional relations for $\theta_3$ valid for similar configurations not pictured, involving the constant angle $\beta$:</p>
+<p>$$\theta_3=\pi - C + \beta$$
 $$\theta_3 = 2\pi - \alpha-C$$</p>
 <p>The full expansions in terms of $x_c$ and $y_c$ are shown below.
 $$\theta_3 = \operatorname{atan2}(\pm\sqrt{1 - \frac {1} {-2 a_2 a_3} ((\sqrt{x_c^2 + y_c^2} - d)^2 + (z_c - d)^2 - a_2^2 - a_3^2)}, \frac {1} {-2 a_2 a_3} ((\sqrt{x_c^2 + y_c^2} - d)^2 + (z_c - d)^2 - a_2^2 - a_3^2)) - \alpha$$</p>
 <p>$$\theta_{3} = \pi - \operatorname{atan2}(\pm\sqrt{1 - \frac {1} {-2 a_2 a_3} ((\sqrt{x_c^2 + y_c^2} - d)^2 + (z_c - d)^2 - a_2^2 - a_3^2)}, \frac {1} {-2 a_2 a_3} ((\sqrt{x_c^2 + y_c^2} - d)^2 + (z_c - d)^2 - a_2^2 - a_3^2)) + \beta$$</p>
 <p>$$\theta_3 = 2\pi - \alpha - \operatorname{atan2}(\pm\sqrt{1 - \frac {1} {-2 a_2 a_3} ((\sqrt{x_c^2 + y_c^2} - d)^2 + (z_c - d)^2 - a_2^2 - a_3^2)}, \frac {1} {-2 a_2 a_3} ((\sqrt{x_c^2 + y_c^2} - d)^2 + (z_c - d)^2 - a_2^2 - a_3^2))$$</p>
-<h4 id="Derivation-of-$%5Ctheta_2$">Derivation of $\theta_2$<a class="anchor-link" href="#Derivation-of-$%5Ctheta_2$">¶</a></h4><p>Inspecting fig. 3 we see that $\theta_2=B + \gamma$. It is not hard to compute these values. Much like for $\theta_3$ we must use the law of cosines and the pythagorean trig identity to find an expression for angle $B$.</p>
+<p>These relations, combined with the $\pm$ ambiguity in the $\operatorname{atan2}$ function, lead to a total of six potential solutions for $\theta_3$.</p>
+<h4 id="Derivation-of-$%5Ctheta_2$">Derivation of $\theta_2$<a class="anchor-link" href="#Derivation-of-$%5Ctheta_2$">¶</a></h4><p>From the robot's geometry, the second joint angle $\theta_2$ is related to another intermediate angle $B$ and a constant angle $\gamma$: $\theta_2 = B + \gamma$. Similar to the derivation of $\theta_3$, the law of cosines and the $\operatorname{atan2}$ function are employed to find $B$:</p>
 <p>$$c = \sqrt{r^2 + s^2}$$
 $$cos(B)=\frac {1} {-2 a_2 c} (a_3^2 - c^2 - a_2^2) := E$$
 $$B=\operatorname{atan2}(\pm\sqrt{1 - E}, E)$$
-$$\theta_2 = B + \gamma$$
-$$\theta_2 = \operatorname{atan2}(\pm\sqrt{1 - E}, E) + \gamma$$</p>
+Thus, $\theta_2$ is given by:</p>
+<p>$$\theta_2 = \operatorname{atan2}(\pm\sqrt{1 - E}, E) + \gamma$$</p>
 <p>$$\theta_2 = \operatorname{atan2}(\pm\sqrt{1 - \frac {1} {-2 a_2 c} (a_3^2 - (\sqrt{r^2 + s^2})^2 - a_2^2)}, \frac {1} {-2 a_2 c} (a_3^2 - (\sqrt{r^2 + s^2})^2 - a_2^2)) + \gamma$$</p>
+<p>This yields two potential solutions for $\theta_2$.</p>
 </li>
-<li><p><span style="font-size: 24px;">Position solution filtering</span></p>
-<p>Now $\theta_1$, two different $\theta_2$'s and six different $\theta_3$'s have been obtained, making for 12 possible permutations. In order to determine what the actual solution(s) are, the foreward kinematics will be computed for all the combinations of $\theta_1, \theta_2$ and $\theta_3$ with the other angles being 0. A solution will be accepted if the wrist center is in the correct place.</p>
+<li><p><span style="font-size: 24px;">Position Solution Filtering</span></p>
+<p>Combining the derived solutions yields one $\theta_1$, two $\theta_2$'s, and six $\theta_3$'s, resulting in 12 possible combinations for the first three joint angles. To identify the valid solutions, the forward kinematics are computed for each of these combinations, with the remaining three joint angles set to zero. A combination is considered a valid position-level solution if the resulting wrist center matches the wrist center calculated from the desired end-effector pose.</p>
 </li>
 <li><p><span style="font-size: 24px;">Orientation</span></p>
-<p>All that remains is to determine the joint angles $\theta_4, \theta_5, \theta_6$ using the euler angles "ZYZ" of the rotation matrix ${}^3R_6$</p>
-<p>${}^3R_6$ can easily be constructed as follows:</p>
-<p>$${}^0R_3 {}^3R_6=R$$
-$${}^3R_6={}^0R_3^{-1}R$$</p>
-<p>Once the rotation matrix is determined, <code>spatialmath.base.transforms3d.r2x</code> is used to find the euler angles. Internally this function works as follows</p>
-<p>After filtering wrist–center solutions, the last three joints $\theta_4,\theta_5,\theta_6$ are obtained by extracting the ZYZ Euler angles $\bigl[\phi,\;\theta,\;\psi\bigr]$ from the rotation matrix ${}^3R_6$. The procedure is:</p>
+<p>The final three joint angles, $\theta_4, \theta_5, \theta_6$, are determined by extracting the ZYZ Euler angles from the rotation matrix ${}^3R_6$, which represents the orientation of the end-effector frame $\{6\}$ with respect to the third frame $\{3\}$. This matrix is obtained from the known desired rotation matrix $R$ and the rotation matrix ${}^0R_3$ obtained from the first three joint angles:</p>
+<p>$${}^3R_6 = {}^0R_3^{-1}R$$</p>
+<p>The Euler angles $[\phi, \theta, \psi]$ are then extracted from ${}^3R_6$ using <code>spatialmath.base.transforms3d.r2x</code>. The function works as follows:</p>
 <ul>
-<li><h4 id="First-angle-$%5Cphi$-(non%E2%80%93singular-case)">First angle $\phi$ (non–singular case)<a class="anchor-link" href="#First-angle-$%5Cphi$-(non%E2%80%93singular-case)">¶</a></h4><p>From $R = R_z(\phi)\,R_y(\theta)\,R_z(\psi)$ we have<br>
+<li><h4 id="First-angle-$%5Cphi$-(non%E2%80%93singular-case)">First angle $\phi$ (non–singular case)<a class="anchor-link" href="#First-angle-$%5Cphi$-(non%E2%80%93singular-case)">¶</a></h4><p>From $R = R_z(\phi)\,R_y(\theta)\,R_z(\psi)$ we have
 $$
   R_{0,2} = \cos\phi\,\sin\theta,
   \quad
   R_{1,2} = \sin\phi\,\sin\theta.
-  $$<br>
-Hence<br>
+  $$
+Hence
 $$
   \phi = \operatorname{atan2}\bigl(R_{1,2},\,R_{0,2}\bigr),
-  $$</br></br></br></p>
+  $$</p>
 </li>
-<li><h4 id="Second-angle-$%5Ctheta$">Second angle $\theta$<a class="anchor-link" href="#Second-angle-$%5Ctheta$">¶</a></h4><p>Still in the non–singular case, note<br/>
+<li><h4 id="Second-angle-$%5Ctheta$">Second angle $\theta$<a class="anchor-link" href="#Second-angle-$%5Ctheta$">¶</a></h4><p>Still in the non–singular case, note
 $$
   R_{2,2} = \cos\theta,
   \quad
   \cos\phi\,R_{0,2} + \sin\phi\,R_{1,2} = \sin\theta.
-  $$<br/>
-Thus<br/>
+  $$
+Thus
 $$
   \theta = \operatorname{atan2}\!\bigl(\cos\phi\,R_{0,2} + \sin\phi\,R_{1,2},\;R_{2,2}\bigr).
   $$</p>
 </li>
-<li><h4 id="Third-angle-$%5Cpsi$">Third angle $\psi$<a class="anchor-link" href="#Third-angle-$%5Cpsi$">¶</a></h4><p>From the upper‐left $2\times2$ block of $R$:<br/>
+<li><h4 id="Third-angle-$%5Cpsi$">Third angle $\psi$<a class="anchor-link" href="#Third-angle-$%5Cpsi$">¶</a></h4><p>From the upper‐left $2\times2$ block of $R$:
 $$
   R_{0,0} = \cos\phi\cos\psi - \sin\phi\sin\psi,
   \quad
   R_{1,0} = \sin\phi\cos\psi + \cos\phi\sin\psi,
-  $$<br/>
-one arrives at<br/>
+  $$
+one arrives at
 $$
   \psi = \operatorname{atan2}\!\bigl(-\sin\phi\,R_{0,0} + \cos\phi\,R_{1,0},\;
-                          -\sin\phi\,R_{0,1} + \cos\phi\,R_{1,1}\bigr).
+                              -\sin\phi\,R_{0,1} + \cos\phi\,R_{1,1}\bigr).
   $$</p>
 </li>
 </ul>
 </li>
 </ol>
-<h3 id="Conclusion">Conclusion<a class="anchor-link" href="#Conclusion">¶</a></h3><p>All that was described here is implemented in <code>minibotinversekinematics.mini_bot_geometric_inverse(desired_pose: np.ndarray, kinematics: DHKinematics, *args)</code></p>
-<p>Below the given transformation matrix is used with this function to find the two sets of joint angles that produce it.</p>
+<h3 id="Conclusion">Conclusion<a class="anchor-link" href="#Conclusion">¶</a></h3><p>The described geometric inverse kinematics method is implemented in the function <code>minibotinversekinematics.mini_bot_geometric_inverse</code>. This function takes the desired end-effector pose as input and uses the robot's kinematic parameters to return the sets of joint angles that achieve the desired pose. Below the provided transformation matrix is used with this function to find the corresponding joint angles.</p>
 </div>
 </div>
 </div>
@@ -7810,7 +7822,7 @@ $$
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [70]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [194]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">given_transformation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
@@ -7820,11 +7832,11 @@ $$
     <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
 <span class="p">])</span>
 <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-<span class="n">solutions</span> <span class="o">=</span> <span class="n">mini_bot_geometric_inverse</span><span class="p">(</span><span class="n">given_transformation</span><span class="p">,</span> <span class="n">mini_bot_kinematics</span><span class="p">)</span>
+<span class="n">inverse_kinematics_solutions</span> <span class="o">=</span> <span class="n">mini_bot_geometric_inverse</span><span class="p">(</span><span class="n">given_transformation</span><span class="p">,</span> <span class="n">mini_bot_kinematics</span><span class="p">)</span>
 <span class="n">stop_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">solutions</span><span class="p">):</span>
-    <span class="n">deg_angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">sol</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-    <span class="n">is_correct</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">given_transformation</span><span class="p">,</span> <span class="n">mini_bot_kinematics</span><span class="o">.</span><span class="n">foreward</span><span class="p">(</span><span class="n">sol</span><span class="p">)</span><span class="o">.</span><span class="n">A</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">solution</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inverse_kinematics_solutions</span><span class="p">):</span>
+    <span class="n">deg_angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">solution</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">is_correct</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">given_transformation</span><span class="p">,</span> <span class="n">mini_bot_kinematics</span><span class="o">.</span><span class="n">foreward</span><span class="p">(</span><span class="n">solution</span><span class="p">)</span><span class="o">.</span><span class="n">A</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Solution </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">deg_angles</span><span class="si">}</span><span class="s2"> is </span><span class="si">{</span><span class="s1">'correct'</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">is_correct</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">'incorrect'</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Computed in </span><span class="si">{</span><span class="p">(</span><span class="n">stop_time</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> ms"</span><span class="p">)</span>
 </pre></div>
@@ -7854,14 +7866,49 @@ Computed in 5.00 ms
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Question-2-Velocity-level-kinematics">Question 2-Velocity level kinematics<a class="anchor-link" href="#Question-2-Velocity-level-kinematics">¶</a></h2><p>Here the kinematic Jacobian matrix must be computed for the manipulator at the joint angles found from question 1b.</p>
-<p>Explain how this is done.</p>
-<p>The jacobian matrix is defined as</p>
-<p>$$\mathbf{\eta}=\mathbf{J}\mathbf{\dot{q}}$$</p>
-<p>rearranging we get
-$$\mathbf{J}^{-1}\mathbf{\eta}=\mathbf{\dot{q}}$$</p>
-<p>The jacobian is not always invertible but because this robot is 6dof it will always be square. According to chatGPT, a 6x6 jacobian is invertible as long as the robot is not at a singularity, so for our purposes, it should be a safe assumption.</p>
-<p>For now this will be done at the home position because I haven't found the position of question 1b yet.</p>
+<h2 id="Question-2---Velocity-Level-Kinematics"><strong>Question 2 - Velocity Level Kinematics</strong><a class="anchor-link" href="#Question-2---Velocity-Level-Kinematics">¶</a></h2><p>The question states:</p>
+<p>"Compute the kinematic Jacobian for this manipulator that relates the joint angle rates to the end-effector velocity in closed-form. This expression can be performed without choosing a frame, as discussed in class.</p>
+<p>Implement your Jacobian matrix in Python and solve for the joint angle rates needed to produce an end-effector spatial twist of
+$$
+\boldsymbol{\nu} = \begin{pmatrix} \boldsymbol{\omega} \\ \mathbf{v} \end{pmatrix}^T = \begin{pmatrix} 2 &amp; -1 &amp; 0.5 &amp; 100 &amp; -200 &amp; -300 \end{pmatrix}^T
+$$
+whenever the manipulator is at a configuration given in question 1b."</p>
+<p>The question asks for the computation of the kinematic Jacobian for the manipulator, which relates the joint angle rates to the end-effector velocity in closed-form, without choosing a specific frame. Subsequently, the joint angle rates needed to produce a given end-effector spatial twist at a specified manipulator configuration are to be determined.</p>
+<p>To address this, the kinematic Jacobian $\mathbf{J}$ for the manipulator, which relates the joint angle rates $\dot{\mathbf{q}} \in \mathbb{R}^n$ to the end-effector spatial twist $\boldsymbol{\eta} \in \mathbb{R}^6$, must be considered. This relationship is mathematically expressed as:</p>
+<p>$$
+\boldsymbol{\eta} = \mathbf{J}(\mathbf{q}) \dot{\mathbf{q}}
+$$</p>
+<p>where $\mathbf{q}$ is the vector of joint angles. The spatial twist $\boldsymbol{\eta}$ is a combination of the end-effector's linear velocity $\mathbf{v}_n \in \mathbb{R}^3$ and angular velocity $\boldsymbol{\omega}_n \in \mathbb{R}^3$, typically represented with respect to the base frame $\{0\}$:</p>
+<p>$$
+\boldsymbol{\eta} = \begin{pmatrix} {}^0\mathbf{v}_n \\ {}^0\boldsymbol{\omega}_n \end{pmatrix}
+$$</p>
+<p>The Jacobian matrix $\mathbf{J}(\mathbf{q})$ is a $6 \times n$ matrix that is dependent on the robot's configuration $\mathbf{q}$. It can be partitioned into components representing linear and angular velocity contributions:</p>
+<p>$$
+\mathbf{J}(\mathbf{q}) = \begin{pmatrix} \mathbf{J}_v(\mathbf{q}) \\ \mathbf{J}_\omega(\mathbf{q}) \end{pmatrix}_{6 \times n}
+$$</p>
+<p>For a robot with $n$ joints, the $i$-th column of the Jacobian, $\mathbf{J}_i(\mathbf{q})$, represents the contribution of the $i$-th joint's rate $\dot{q}_i$ to the end-effector twist. The form of this column depends on the nature of the $i$-th joint.</p>
+<p>In the case of a revolute joint $i$ with an axis of rotation defined by the unit vector $\mathbf{z}_i \in \mathbb{R}^3$ (expressed in the base frame) passing through a point with position vector ${}^0\mathbf{o}_i \in \mathbb{R}^3$, and given the end-effector's origin position ${}^0\mathbf{o}_n \in \mathbb{R}^3$, the $i$-th column of the Jacobian is:</p>
+<p>$$
+\mathbf{J}_i(\mathbf{q}) = \begin{pmatrix} {}^0\mathbf{z}_i \times ({}^0\mathbf{o}_n - {}^0\mathbf{o}_i) \\ {}^0\mathbf{z}_i \end{pmatrix}
+$$</p>
+<p>For a prismatic joint $i$ with an axis of translation defined by the unit vector $\mathbf{z}_i \in \mathbb{R}^3$, the $i$-th column of the Jacobian is:</p>
+<p>$$
+\mathbf{J}_i(\mathbf{q}) = \begin{pmatrix} {}^0\mathbf{z}_i \\ \mathbf{0}_{3 \times 1} \end{pmatrix}
+$$</p>
+<p>To determine the joint angle rates $\dot{\mathbf{q}}$ required to produce the desired end-effector spatial twist $\boldsymbol{\nu} = \begin{pmatrix} 100 &amp; -200 &amp; -300 &amp; 2 &amp; -1 &amp; 0.5 \end{pmatrix}^T$ at a specific robot configuration $\mathbf{q}^*$ (obtained from Question 1b), the linear system $\boldsymbol{\eta} = \mathbf{J}(\mathbf{q}^*) \dot{\mathbf{q}}$ must be solved. Rearranging the desired twist to match the Jacobian's structure yields $\boldsymbol{\eta} = \begin{pmatrix} 100 \\ -200 \\ -300 \\ 2 \\ -1 \\ 0.5 \end{pmatrix}$.</p>
+<p>If the Jacobian $\mathbf{J}(\mathbf{q}^*)$ is a square ($6 \times 6$ for a 6-DOF robot) and non-singular matrix, the joint rates can be found by direct inversion:</p>
+<p>$$
+\dot{\mathbf{q}} = \mathbf{J}(\mathbf{q}^*)^{-1} \boldsymbol{\eta}
+$$</p>
+<p>However, in cases where $\mathbf{J}(\mathbf{q}^*)$ might be singular (rank-deficient), the Moore-Penrose pseudoinverse $\mathbf{J}(\mathbf{q}^*)^{\dagger}$ provides a more general solution. For a full-rank Jacobian, a common form is the right pseudoinverse:</p>
+<p>$$
+\mathbf{J}(\mathbf{q}^*)^{\dagger} = \mathbf{J}(\mathbf{q}^*)^T (\mathbf{J}(\mathbf{q}^*) \mathbf{J}(\mathbf{q}^*)^T)^{-1}
+$$</p>
+<p>The joint angle rates are then computed as:</p>
+<p>$$
+\dot{\mathbf{q}} = \mathbf{J}(\mathbf{q}^*)^{\dagger} \boldsymbol{\eta} = \mathbf{J}(\mathbf{q}^*)^T (\mathbf{J}(\mathbf{q}^*) \mathbf{J}(\mathbf{q}^*)^T)^{-1} \boldsymbol{\eta}
+$$</p>
+<p>The implementation of the <code>DHKinematics.jacobian</code> function in Python allows for the computation of $\mathbf{J}(\mathbf{q})$. The desired joint rates $\dot{\mathbf{q}}$ are obtained by multiplying the pseudoinverse with the desired spatial twist $\boldsymbol{\eta}$.</p>
 </div>
 </div>
 </div>
@@ -7870,36 +7917,15 @@ $$\mathbf{J}^{-1}\mathbf{\eta}=\mathbf{\dot{q}}$$</p>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [27]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [195]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">np</span><span class="o">.</span><span class="n">set_printoptions</span><span class="p">(</span><span class="n">suppress</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">question_2_twist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">.5</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="o">-</span><span class="mi">200</span><span class="p">,</span> <span class="o">-</span><span class="mi">300</span><span class="p">])</span>
-<span class="n">question_2_angles</span> <span class="o">=</span> <span class="n">home_angles</span>
-<span class="n">home_jacobian</span> <span class="o">=</span> <span class="n">mini_bot_kinematics</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">joint_angles</span><span class="o">=</span><span class="n">question_2_angles</span><span class="p">,</span> <span class="n">link</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
-<span class="c1"># twist = home_jacobian @ goal_rates</span>
-<span class="c1"># print(twist)</span>
-<span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">pinv</span><span class="p">(</span><span class="n">mini_bot_kinematics</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">joint_angles</span><span class="o">=</span><span class="n">question_2_angles</span><span class="p">,</span> <span class="n">link</span><span class="o">=</span><span class="mi">6</span><span class="p">))</span> <span class="o">@</span> <span class="n">question_2_twist</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">rates</span><span class="p">)</span>
-
-<span class="n">mj</span><span class="o">.</span><span class="n">mj_resetData</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mujoco_model_data</span><span class="p">)</span>
-<span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">qpos</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">question_2_angles</span><span class="p">)]</span> <span class="o">=</span> <span class="n">question_2_angles</span>
-
-<span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">qvel</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">rates</span><span class="p">)]</span> <span class="o">=</span> <span class="n">rates</span>
-
-<span class="n">mj</span><span class="o">.</span><span class="n">mj_forward</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mujoco_model_data</span><span class="p">)</span>
-
-
-<span class="c1"># Tried and true code from project 1</span>
-<span class="c1"># Body twist: measured in the end-effector's (body) frame [linear; angular]</span>
-<span class="n">body_lin_vel</span> <span class="o">=</span> <span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">sensordata</span><span class="p">[</span><span class="mi">0</span> <span class="p">:</span> <span class="mi">3</span><span class="p">]</span>
-<span class="n">body_ang_vel</span> <span class="o">=</span> <span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">sensordata</span><span class="p">[</span><span class="mi">3</span> <span class="p">:</span> <span class="mi">6</span><span class="p">]</span>
-<span class="n">measured_twist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">body_lin_vel</span><span class="p">,</span> <span class="n">body_ang_vel</span><span class="p">])</span>
-
-
-<span class="n">measured_twist</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">mujoco_model_data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">measured_twist</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span> <span class="c1"># Convert linear units to mm</span>
-<span class="n">measured_twist</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">mujoco_model_data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">measured_twist</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Measured Twist: </span><span class="si">{</span><span class="n">measured_twist</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">question_2_twist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">100</span><span class="p">,</span> <span class="o">-</span><span class="mi">200</span><span class="p">,</span> <span class="o">-</span><span class="mi">300</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">.5</span><span class="p">])</span>
+<span class="n">rate_solutions</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">solution</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inverse_kinematics_solutions</span><span class="p">):</span>
+    <span class="n">jacobian</span> <span class="o">=</span> <span class="n">mini_bot_kinematics</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">joint_angles</span><span class="o">=</span><span class="n">solution</span><span class="p">,</span> <span class="n">link</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+    <span class="n">rate_solutions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">pinv</span><span class="p">(</span><span class="n">jacobian</span><span class="p">)</span> <span class="o">@</span> <span class="n">question_2_twist</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Joint rates for solution </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">rate_solutions</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7912,10 +7938,8 @@ $$\mathbf{J}^{-1}\mathbf{\eta}=\mathbf{\dot{q}}$$</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ -0.00484659  21.27144    -97.26944     50.         275.998
-  50.        ]
-Measured Twist: [   2.           -1.80535612    0.5         100.         -200.
-   -0.00484659]
+<pre>Joint rates for solution 1: [-0.815 -1.407  1.779  2.056 -1.299  0.792]
+Joint rates for solution 2: [-0.815  0.425 -1.779 -0.46  -3.518  1.352]
 </pre>
 </div>
 </div>
@@ -7928,8 +7952,16 @@ Measured Twist: [   2.           -1.80535612    0.5         100.         -200.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Question-3---mujoco-verification">Question 3 - mujoco verification<a class="anchor-link" href="#Question-3---mujoco-verification">¶</a></h2><p>In this question I will use the mujoco model of this robot to verify the answers to the rest of the project.</p>
-<h3 id="Question-1-Foreword-position-kinematics">Question 1 Foreword position kinematics<a class="anchor-link" href="#Question-1-Foreword-position-kinematics">¶</a></h3><p>For part A, the foreword kinematics we can simply set the model to the joint angles given and read off the transformation of the end-effector. Just because I will also verify the transformation to the home position.</p>
+<h2 id="Question-3-Mujoco-verification">Question 3-Mujoco verification<a class="anchor-link" href="#Question-3-Mujoco-verification">¶</a></h2><p>Here the mujoco model of this robot is used to verify the answers to the rest of the project.</p>
+<figure>
+<img alt="The mujoco model in the home position" src="resources/mujocoHomePosition.png" width="700"/>
+<figcaption>Figure 4: The mujoco model in the home position</figcaption>
+</figure>
+<h4 id="Question-1a-Verification">Question 1a Verification<a class="anchor-link" href="#Question-1a-Verification">¶</a></h4><p>For the foreward kinematics we can simply set the model to the joint angles given and read off the transformation of the end-effector. Below the model is shown in that position.</p>
+<figure>
+<img alt="The mujoco model in position for question 1a" src="resources/mujoco_q1a.png" width="700"/>
+<figcaption>Figure 5: The mujoco model in position for question 1a</figcaption>
+</figure>
 </div>
 </div>
 </div>
@@ -7938,24 +7970,14 @@ Measured Twist: [   2.           -1.80535612    0.5         100.         -200.
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [28]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [196]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Home position</span>
-<span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">qpos</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">home_angles</span><span class="p">)]</span> <span class="o">=</span> <span class="n">home_angles</span>
-<span class="n">mj</span><span class="o">.</span><span class="n">mj_forward</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mujoco_model_data</span><span class="p">)</span>
-<span class="n">mujoco_home_pose</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">mujoco_model_data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span>
-
-<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mujoco_home_pose</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">home_pos</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"The home position was correctly computed. "</span><span class="p">)</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"The home position was not correctly computed."</span><span class="p">)</span>
-
-<span class="c1"># Question 1 part A</span>
-<span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">qpos</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">question_1_angles</span><span class="p">)]</span> <span class="o">=</span> <span class="n">question_1_angles</span>
-<span class="n">mj</span><span class="o">.</span><span class="n">mj_forward</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mujoco_model_data</span><span class="p">)</span>
-<span class="n">mujoco_question_one_pose</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">mujoco_model_data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span>
-
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">data</span><span class="o">.</span><span class="n">qpos</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">question_1_angles</span><span class="p">)]</span> <span class="o">=</span> <span class="n">question_1_angles</span>
+<span class="n">mj</span><span class="o">.</span><span class="n">mj_forward</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+<span class="n">mujoco_question_one_pose</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"The transformation as produced by mujoco is:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">mujoco_question_one_pose</span><span class="p">)</span>
 <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mujoco_question_one_pose</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">question_one_transformation</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">"Question 1 part A is correct."</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
@@ -7972,7 +7994,12 @@ Measured Twist: [   2.           -1.80535612    0.5         100.         -200.
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>The home position was correctly computed. 
+<pre>The transformation as produced by mujoco is:
+  <span class="ansi-red-fg"> 1       </span> <span class="ansi-red-fg"> 0       </span> <span class="ansi-red-fg"> 0       </span> <span class="ansi-blue-fg"> 277.5   </span>  
+  <span class="ansi-red-fg"> 0       </span> <span class="ansi-red-fg">-1       </span> <span class="ansi-red-fg"> 0       </span> <span class="ansi-blue-fg"> 0       </span>  
+  <span class="ansi-red-fg"> 0       </span> <span class="ansi-red-fg"> 0       </span> <span class="ansi-red-fg">-1       </span> <span class="ansi-blue-fg"> 564     </span>  
+  <span style="color: rgb(128,128,128)"> 0       </span> <span style="color: rgb(128,128,128)"> 0       </span> <span style="color: rgb(128,128,128)"> 0       </span> <span style="color: rgb(128,128,128)"> 1       </span>  
+
 Question 1 part A is correct.
 </pre>
 </div>
@@ -7986,76 +8013,39 @@ Question 1 part A is correct.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Question-1-B-Inverse-position-kinematics">Question 1 B-Inverse position kinematics<a class="anchor-link" href="#Question-1-B-Inverse-position-kinematics">¶</a></h3>
+<h4 id="Question-1b-Verification">Question 1b Verification<a class="anchor-link" href="#Question-1b-Verification">¶</a></h4><p>To verify question 1b we will set the mujoco model to the calculated joint angles, read off the transformation and verify that it matches the one given in the project instructions.</p>
+<div class="image-row">
+<figure>
+<img alt="Inverse Kinematics Solution 1" src="resources/mujoco_q1bSol1.png"/>
+<figcaption>Figure 6: Inverse Kinematics Solution 1</figcaption>
+</figure>
+<figure>
+<img alt="Inverse Kinematics Solution 2" src="resources/mujoco_q1bSol2.png"/>
+<figcaption>Figure 7: Inverse Kinematics Solution 2</figcaption>
+</figure>
+</div>
+<p>Below is the verification.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=e1817a76">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=e1817a76">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [29]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [197]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">pass</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a6673f06">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Question-2-Velocity-Level-Kinematics.">Question 2 Velocity Level Kinematics.<a class="anchor-link" href="#Question-2-Velocity-Level-Kinematics.">¶</a></h3><p>Here we will check if the jacobian function works correctly by setting  joint positions and velocities in mujoco, reading the twist, and comparing it to what my function yields, the same way as in project 1.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ade60a43">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [30]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">mj</span><span class="o">.</span><span class="n">mj_resetData</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mujoco_model_data</span><span class="p">)</span>
-
-<span class="n">test_angles</span> <span class="o">=</span> <span class="n">home_angles</span>
-<span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">qpos</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">test_angles</span><span class="p">)]</span> <span class="o">=</span> <span class="n">test_angles</span>
-
-<span class="c1"># Use random rotation rates each test. </span>
-<span class="n">test_rot_rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">low</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
-<span class="c1"># test_rot_rates = np.array([1, 0, 0, 0, 0, 0])</span>
-<span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">qvel</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">test_rot_rates</span><span class="p">)]</span> <span class="o">=</span> <span class="n">test_rot_rates</span>
-
-
-<span class="n">mj</span><span class="o">.</span><span class="n">mj_forward</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mujoco_model_data</span><span class="p">)</span>
-
-
-<span class="c1"># Tried and true code from project 1</span>
-<span class="c1"># Body twist: measured in the end-effector's (body) frame [linear; angular]</span>
-<span class="n">body_lin_vel</span> <span class="o">=</span> <span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">sensordata</span><span class="p">[</span><span class="mi">0</span> <span class="p">:</span> <span class="mi">3</span><span class="p">]</span>
-<span class="n">body_ang_vel</span> <span class="o">=</span> <span class="n">mujoco_model_data</span><span class="o">.</span><span class="n">sensordata</span><span class="p">[</span><span class="mi">3</span> <span class="p">:</span> <span class="mi">6</span><span class="p">]</span>
-<span class="n">measured_twist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">body_lin_vel</span><span class="p">,</span> <span class="n">body_ang_vel</span><span class="p">])</span>
-
-
-<span class="n">measured_twist</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">mujoco_model_data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">measured_twist</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span> <span class="c1"># Convert linear units to mm</span>
-<span class="n">measured_twist</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">mujoco_model_data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">measured_twist</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
-
-<span class="n">test_jacobian</span> <span class="o">=</span> <span class="n">mini_bot_kinematics</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">joint_angles</span><span class="o">=</span><span class="n">test_angles</span><span class="p">,</span> <span class="n">link</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
-<span class="n">analytic_twist</span> <span class="o">=</span> <span class="n">test_jacobian</span> <span class="o">@</span> <span class="n">test_rot_rates</span>
-
-<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">measured_twist</span><span class="p">,</span> <span class="n">analytic_twist</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"Twist was correct"</span><span class="p">)</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"Twist was incorrect. "</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Measured: </span><span class="si">{</span><span class="n">measured_twist</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Analytic: </span><span class="si">{</span><span class="n">analytic_twist</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">solution</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inverse_kinematics_solutions</span><span class="p">):</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">qpos</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">solution</span><span class="p">)]</span> <span class="o">=</span> <span class="n">solution</span>
+    <span class="n">mj</span><span class="o">.</span><span class="n">mj_forward</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+    <span class="n">pose</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pose</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">given_transformation</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Question 1 part B solution </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> is correct."</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Question 1 part B solution </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> is not correct. "</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"The transformation as produced by mujoco is:"</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">pose</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8068,7 +8058,63 @@ Question 1 part A is correct.
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Twist was correct
+<pre>Question 1 part B solution 1 is correct.
+Question 1 part B solution 2 is correct.
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a6673f06">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h4 id="Question-2-Verification">Question 2 Verification<a class="anchor-link" href="#Question-2-Verification">¶</a></h4><p>Here we will check if the jacobian function works correctly by setting  joint positions and velocities in mujoco, reading the twist, and comparing it to what <code>DHKinematics.jacobian</code> yields.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ade60a43">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [198]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">correctnesses</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">rates</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">rate_solutions</span><span class="p">):</span>
+    <span class="n">solution</span> <span class="o">=</span> <span class="n">inverse_kinematics_solutions</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">mj</span><span class="o">.</span><span class="n">mj_resetData</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">qpos</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">solution</span><span class="p">)]</span> <span class="o">=</span> <span class="n">solution</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">qvel</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">rates</span><span class="p">)]</span> <span class="o">=</span> <span class="n">rates</span>
+    <span class="n">mj</span><span class="o">.</span><span class="n">mj_forward</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+    <span class="n">body_lin_vel</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sensordata</span><span class="p">[</span><span class="mi">0</span> <span class="p">:</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="n">body_ang_vel</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sensordata</span><span class="p">[</span><span class="mi">3</span> <span class="p">:</span> <span class="mi">6</span><span class="p">]</span>
+    <span class="n">measured_twist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">body_lin_vel</span><span class="p">,</span> <span class="n">body_ang_vel</span><span class="p">])</span>
+    <span class="n">measured_twist</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">measured_twist</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span> <span class="c1"># Convert linear units to mm</span>
+    <span class="n">measured_twist</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span> <span class="o">=</span> <span class="n">get_pose</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">end_effector_body_id</span><span class="p">)</span><span class="o">.</span><span class="n">R</span> <span class="o">@</span> <span class="n">measured_twist</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+    <span class="n">correctnesses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">measured_twist</span><span class="p">,</span> <span class="n">question_2_twist</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Measured Twist for joint solution </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">measured_twist</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2"> is </span><span class="si">{</span><span class="s2">"correct"</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">correctnesses</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s2">"not correct."</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">correctnesses</span><span class="p">)):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Question 2 is correct."</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Measured Twist for joint solution 1: [100.0, -200.0, -300.0, 2.0, -1.0, 0.5] is correct
+Measured Twist for joint solution 2: [100.0, -200.0, -300.0, 2.0, -1.0, 0.5] is correct
+Question 2 is correct.
 </pre>
 </div>
 </div>
