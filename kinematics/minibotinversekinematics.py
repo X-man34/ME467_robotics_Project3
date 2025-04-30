@@ -60,9 +60,6 @@ def mini_bot_geometric_inverse(desired_pose: np.ndarray, kinematics: DHKinematic
         return desired_translation - 95 * desired_rotation @ np.array([0, 0, 1])
 
     wrist_center = get_wrist_center(desired_pose)
-    d = 27.5
-    r = np.sqrt(wrist_center[0]**2 + wrist_center[1]**2) - d# Projected distance from joint 2 to wrist center in x0 y0 plane. 
-    s = wrist_center[2] - 339
     theta11 = np.arctan2(wrist_center[1], wrist_center[0])
 
     # theta12 = theta11 + np.pi
@@ -72,7 +69,9 @@ def mini_bot_geometric_inverse(desired_pose: np.ndarray, kinematics: DHKinematic
     # # possible_theta1s = [theta11, theta12]
     possible_theta1s = [theta11]
     # Now we need to find theta 2 and 3. These are independent of theta1
-    
+    d = 27.5
+    r = np.sqrt(wrist_center[0]**2 + wrist_center[1]**2) - d# Projected distance from joint 2 to wrist center in x0 y0 plane. 
+    s = wrist_center[2] - 339
     # length of the second link
     a2 = 250
     # length of line from the 3rd joint to the wrist center. 

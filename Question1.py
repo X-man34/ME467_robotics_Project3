@@ -4,24 +4,12 @@ import numpy as np
 import mujoco.viewer
 import time
 from numpy import deg2rad
-from kinematics.DHKinematics import DHKinematics
+from kinematics import DHKinematics
 from kinematics import mini_bot_geometric_inverse
 import os
 from concurrent.futures import ProcessPoolExecutor
 import traceback
 
-# def check_solution(proposed_solution: np.ndarray, correct_answer: np.ndarray):
-    
-
-#     for i in range(len(correct_answer)):
-#         if not np.isclose(proposed_solution[i], correct_answer[i], atol=1e-3):
-#             return False
-    
-#     print(f"Inverse: {proposed_solution}")
-#     return True
-    
-
-# Define the paramaters for this robot arm. 
 dh_table = [[True, 27.5, np.pi/2, 339],
             [True, 250, 0, 0],
             [True, 70, np.pi/2, 0],
@@ -62,7 +50,7 @@ if __name__ == "__main__":
     np.set_printoptions(suppress=True)
 
     # Load the mujoco model for answer verification. 
-    xml_path = Path("CAD") / "robot_model.xml"
+    xml_path = Path("mujoco_files") / "robot_model.xml"
     model = mj.MjModel.from_xml_path(str(xml_path))
     mujoco_model_data = mj.MjData(model)
 
@@ -81,30 +69,9 @@ if __name__ == "__main__":
                                     [0, 0, 0, 1]])
     
     
+    asd = mini_bot_geometric_inverse(given_transformation, mini_bot_kinematics)
 
 
-    # trials = 1000
-    # successes = 0
-    # for i in range(trials):
-    #     if check_random():
-    #         successes += 1
-    # success_rate = successes / trials
-    # print(f"Success rate: {success_rate} for {trials} trials")
-
-
-    
-
-
-
-    trials = 10000
-    workers = os.cpu_count()
-
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        results = list(executor.map(run_trial, range(trials)))  # no lambda
-
-    successes = sum(results)
-    success_rate = successes / trials
-    print(f"Success rate: {success_rate} for {trials} trials")
 
     # question_1_angles = np.array([0, deg2rad(90), 0, 0, deg2rad(-90), 0]) 
     # try:

@@ -1,0 +1,64 @@
+<mujoco>
+<option gravity="0 0 -9.804" integrator = "RK4" />
+    <asset>
+        <mesh name="link1" file="Link1.STL" scale=".001 .001 .001" />
+		<mesh name="link2" file="Link2.STL" scale=".001 .001 .001" />
+		<mesh name="link3" file="Link3.STL" scale=".001 .001 .001" />
+		<mesh name="link4" file="Link4.STL" scale=".001 .001 .001" />
+		<mesh name="link5" file="Link5.STL" scale=".001 .001 .001" />
+		<mesh name="claw" file="Endeffector.STL" scale=".001 .001 .001" />
+        
+    </asset>
+	<worldbody>
+		<light diffuse=".5 .5 .5" pos="0 0 3" dir="0 0 -1"/>
+		<geom type="plane" size="2.5 2.5 0.1" rgba=".9 .9 .9 1" pos="0 0 0"/>
+		<geom type="box" size=".102 .102 .102" pos="0 0 .102" xyaxes="1 0 0 0 1 0" rgba="0.9 0 0 0.7"/>
+		<body name="frame0" pos="0 0 0" xyaxes="1 0 0 0 1 0">
+			<geom type="mesh" mesh="link1" rgba="0.2 0.6 0.8 1" pos=".096 -.04 .204" xyaxes="-1 0 0 0 0 1" />
+			<joint name="joint0" type="hinge" axis="0 0 1" pos="0 0 0 "/>
+
+			<body name="frame1" pos=".0275 0 .339" xyaxes="1 0 0 0 0 1">
+				<joint name="joint1" type="hinge" axis="0 0 1" pos="0 0 0 "/>
+				<geom type="mesh" mesh="link2" rgba="0.2 0.6 0.8 1" pos="-.0675 .0675 .045"   xyaxes="0 -1 0 1 0 0"/>
+				<body name="frame2" pos=".250 0 0" xyaxes="1 0 0 0 1 0">
+					<geom type="mesh" mesh="link3" rgba="0.2 0.6 0.8 1" pos="-.674 0.741 -.04"   xyaxes="0 -1 0 1 0 0"/>
+					<joint name="joint2" type="hinge" axis="0 0 1" pos="0 0 0 "/>
+					<body name="frame3" pos=".07 0 0" xyaxes="1 0 0 0 0 1">
+						<geom type="mesh" mesh="link4" rgba="0.2 0.6 0.8 1" pos="-.034 -.05 .106"  xyaxes="0 0 1 1 0 0"/>
+						<joint name="joint3" type="hinge" axis="0 0 1" pos="0 0 0 "/>
+						<body name="frame4" pos="0 0 .250" xyaxes="1 0 0 0 0 -1">
+							<geom type="mesh" mesh="link5" rgba="0.2 0.6 0.8 1" pos=".033 .026 .033"   xyaxes="0 -1 0 -1 0 0"/>
+							<joint name="joint4" type="hinge" axis="0 0 1" pos="0 0 0 "/>
+							<body name="frame5" pos="0 0 0" xyaxes="1 0 0 0 0 1">
+								<site name="wrist-center" pos="0 0 0" size=".005" rgba="1 0 0 1" type="sphere"/>
+								<joint name="joint5" type="hinge" axis="0 0 1" pos="0 0 0 "/>
+								<geom type="mesh" mesh="claw" rgba="0.2 0.6 0.8 1" pos="-.015 -.1 .06"   xyaxes="1 0 0 0 1 0"/>
+								<body name="end-effector" pos="0 0 .095" xyaxes="1 0 0 0 1 0">
+									<site name="end-effector-sensor" pos="0 0 0" size=".005" rgba="1 0 0 1" type="sphere"/>
+								</body>
+							</body>
+						</body>
+					</body>
+				</body>
+			</body>
+		</body>
+	</worldbody>
+
+
+	<keyframe>
+	<key name="home" qpos="0 1.570796327 0 0 0 0"/><!-- theta1, theta2-->
+	<key name="crazy" qpos="3.00405339 -0.8176683 -0.73055078 1.76679474 -2.62324159 -1.78193939"/>
+	</keyframe>
+
+	<!--- Copy paste from project 1-->
+	<sensor>
+		<velocimeter name="body-linear-vel-c" site="end-effector-sensor"/><!-- from docs: "This element creates a 3-axis velocimeter. 
+		The sensor is mounted at a site, and has the same position and orientation as the site frame. This sensor outputs three numbers,
+		which are the linear velocity of the site in local coordinates." so this is the body linear velocity of the end effector with respect to the world frame-->
+		<gyro name="body-ang-vel-c" site="end-effector-sensor"/><!--- body angular velcoity of the end effector wrt the world frame, this will need to be converted into a spatial velocity for use on Q4-->
+
+
+
+	</sensor>
+</mujoco>
+
