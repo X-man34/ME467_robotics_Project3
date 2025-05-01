@@ -10,4 +10,8 @@ to export report run
 updating MikTex appears to break this command. 
 
 
-todo add figure numbers to report. 
+todo 
+- udpate readme to say were files are
+- audit code and make sure everything is pretty
+- implement numerical inverse kinematics for fun
+- implement a trajectory command for fun. 

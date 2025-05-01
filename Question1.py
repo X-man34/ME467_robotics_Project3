@@ -1,6 +1,7 @@
 import mujoco as mj
 from pathlib import Path
 import numpy as np
+from spatialmath import SE3
 import mujoco.viewer
 import time
 from numpy import deg2rad
@@ -63,46 +64,47 @@ if __name__ == "__main__":
     # Compute the transformation of a known position for use later. 
     home_pos = mini_bot_kinematics.foreward(home_angles)
 
-    given_transformation = np.array([[.7551, .4013, .5184, 399.1255], 
-                                    [.6084, -.7235, -.3262, 171.01526], 
-                                    [.2441, .5617, -.7905, 416.0308], 
-                                    [0, 0, 0, 1]])
-    
-    
-    asd = mini_bot_geometric_inverse(given_transformation, mini_bot_kinematics)
+    result = mini_bot_kinematics.inverse(home_pos, np.array([.01, np.pi/2, 0, 0, 0, .01]), convergence_threshold=1e-8, max_iterations=100, gain=.9)
+    print(result[1])
+    print(result[0])
+    print(mini_bot_kinematics.foreward(result[0]))
+    print(home_pos)
 
+    solutions = []
+    solutions.append(result[0])
+    solutions.append(home_angles)
 
+    question_1_angles = np.array([0, deg2rad(90), 0, 0, deg2rad(-90), 0]) 
+    try:
+        with mujoco.viewer.launch_passive(model, mujoco_model_data) as viewer:
+            # viewer.cam.azimuth = 180  # Looking along X-axis
+            viewer.cam.distance *= 2.0 
+            mujoco_model_data.qpos[:6] = solutions[0]
+            mj.mj_forward(model, mujoco_model_data)
+            viewer.sync()
+            start_time = time.time()
+            millis = 0
+            to_display = 0
+            while True:
+                if not viewer.is_running():
+                    break
 
-    # question_1_angles = np.array([0, deg2rad(90), 0, 0, deg2rad(-90), 0]) 
-    # try:
-    #     with mujoco.viewer.launch_passive(model, mujoco_model_data) as viewer:
-    #         # viewer.cam.azimuth = 180  # Looking along X-axis
-    #         viewer.cam.distance *= 2.0 
-    #         mujoco_model_data.qpos[:6] = question_1_angles
-    #         mj.mj_forward(model, mujoco_model_data)
-    #         viewer.sync()
-    #         start_time = time.time()
-    #         millis = 0
-    #         to_display = 0
-    #         while True:
-    #             if not viewer.is_running():
-    #                 break
-
-    #             # if millis % 3000 == 0:
-    #             #     # every thee seconds
-    #             #     if to_display < len(solutions):
-    #             #         mujoco_model_data.qpos[:6] = solutions[to_display]
-    #             #         mj.mj_forward(model, mujoco_model_data)
-    #             #         to_display += 1
-    #             #     if to_display == len(solutions):
-    #             #         to_display = 0
-    #             # time.sleep(.001)
-    #             millis += 1
-    #             # mj.mj_step(model, mujoco_model_data)
-    #             viewer.sync()
+                if millis % 3000 == 0:
+                    # every thee seconds
+                    if to_display < len(solutions):
+                        mujoco_model_data.qpos[:6] = solutions[to_display]
+                        mj.mj_forward(model, mujoco_model_data)
+                        to_display += 1
+                    if to_display == len(solutions):
+                        to_display = 0
+                time.sleep(.001)
+                millis += 1
+                # mj.mj_step(model, mujoco_model_data)
+                viewer.sync()
         
         
         
-    # except KeyboardInterrupt:
-    #     print("Keyboard interrupt received. Closing viewer...")
-    #     viewer.close()
+    except KeyboardInterrupt:
+        print("Keyboard interrupt received. Closing viewer...")
+        viewer.close()
+

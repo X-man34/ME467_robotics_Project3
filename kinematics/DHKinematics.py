@@ -117,7 +117,7 @@ class DHKinematics:
             J[3:, i] = J_angular
         return J
 
-    def inverse(self, desired_pose: SE3, joint_angles_guess, convergence_threshold = .01, gain=1, max_iterations=20)-> list: 
+    def inverse(self, desired_pose: SE3, joint_angles_guess, convergence_threshold = .001, gain=1, max_iterations=30)-> list: 
         """
         Performs a numerical search to determine the set of joint angles that most optimally puts the end-effector at the desired pose. 
         implements both the jacobian transpose method. 
@@ -130,19 +130,32 @@ class DHKinematics:
 
         """
 
+        def get_x_desired(pose: SE3)->np.ndarray:
+            translation = pose.t
+            
+            angle, rotation = pose.UnitQuaternion().angvec()
+            return np.concatenate((translation, rotation.flatten()))
+
         # Goal 
-        goal_pose = self.transformation_to_minimal_representation(desired_pose)
+        x_desired = get_x_desired(desired_pose)
 
         q = joint_angles_guess
 
         converging = True
         iters = 0
         while converging:
-            update = gain * ((self.jacobian(joint_angles=q, link=6).T) @ (goal_pose - self.transformation_to_minimal_representation(self.foreward(q))))
+            foreward = self.foreward(q)
+            error = x_desired - get_x_desired(foreward)
+            print(get_x_desired(foreward))
+            print(get_x_desired(desired_pose))
+            # update = gain * ((self.jacobian(joint_angles=q, link=6).T) @ error)
+            update = gain * (np.linalg.pinv(self.jacobian(joint_angles=q, link=6)) @ error)
+
             q = q + update
             iters += 1
-            error = np.linalg.norm(update)
+            error = np.linalg.norm(error)
             print(f"Error at iteration {iters} is {error}")
+            
             if error < convergence_threshold:
                 return q, f"Converged in {iters} iterations, final error: {error}"
             if iters > max_iterations:
