@@ -31,6 +31,7 @@ def filter_unique_solutions(solutions, tolerance=1e-5):
                 break
 
         if is_unique:
+            sol = (sol + np.pi) % (2 * np.pi) - np.pi # Make sure all angles are not two times around. like 2pi->0 
             unique_solutions.append(sol.tolist())
 
     return unique_solutions
@@ -141,10 +142,10 @@ def mini_bot_geometric_inverse(desired_pose: np.ndarray, kinematics: DHKinematic
 
     valid_solutions = filter_unique_solutions(valid_solutions)
     # Assuming valid_solutions is a list of joint angles in radians
-    valid_solutions = [
-        normalize_angles_rad(sol, tol=1e-3)  # Set tolerance to desired level
-        for sol in valid_solutions
-    ]
+    # valid_solutions = [
+    #     normalize_angles_rad(sol, tol=1e-3)  # Set tolerance to desired level
+    #     for sol in valid_solutions
+    # ]
 
     # Check once again that the solutions are valid, now considering the whole transformation
     final_solutions = []

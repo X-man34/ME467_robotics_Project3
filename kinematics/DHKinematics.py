@@ -1,8 +1,6 @@
 import numpy as np
 from spatialmath import SE3
 
-
-
 class DHKinematics:
     def __init__(self, home_joint_angles, dh_table):
         """
@@ -117,8 +115,11 @@ class DHKinematics:
             J[3:, i] = J_angular
         return J
 
+    # FIXME see docs
     def inverse(self, desired_pose: SE3, joint_angles_guess, convergence_threshold = .001, gain=1, max_iterations=30)-> list: 
         """
+        
+        If ever fix this, will need to comput analytic jacobian instead of kinematic jacobian using autodiff of a custom f map. 
         Performs a numerical search to determine the set of joint angles that most optimally puts the end-effector at the desired pose. 
         implements both the jacobian transpose method. 
         Args:
@@ -129,7 +130,8 @@ class DHKinematics:
 
 
         """
-
+        print("YOU ARE USING NUMERICAL INVERSE KINEMATICS THIS CODE IS UNDER DEVELOPMENT AND DOES NOT WORK")
+        print("See docs for more info. ")
         def get_x_desired(pose: SE3)->np.ndarray:
             translation = pose.t
             

@@ -14,6 +14,7 @@
 		<geom type="plane" size="2.5 2.5 0.1" rgba=".9 .9 .9 1" pos="0 0 0"/>
 		<geom type="box" size=".102 .102 .102" pos="0 0 .102" xyaxes="1 0 0 0 1 0" rgba="0.9 0 0 0.7"/>
 		<body name="frame0" pos="0 0 0" xyaxes="1 0 0 0 1 0">
+			
 			<geom type="mesh" mesh="link1" rgba="0.2 0.6 0.8 1" pos=".096 -.04 .204" xyaxes="-1 0 0 0 0 1" />
 			<joint name="joint0" type="hinge" axis="0 0 1" pos="0 0 0 "/>
 
