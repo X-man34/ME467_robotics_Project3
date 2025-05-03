@@ -10,7 +10,7 @@ Additionally some functions and a script were written to make an animation using
 
 To install the required dependencies, run:
 
-> pip install mujoco spatialmath-python numpy nbconvert scipy
+> pip install mujoco spatialmath-python numpy nbconvert scipy tqdm
 
 ## Report Export
 
