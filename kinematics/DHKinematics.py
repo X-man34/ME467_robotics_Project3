@@ -18,8 +18,19 @@ class DHKinematics:
         self.dh_table = dh_table
         self.last_joint_angles = self.home_positon
         self.last_pose = self.foreward(self.home_positon, return_intermediate=True)
-
-
+        # comupute the transformation from frame 3 to 6 with 0 for all joint angles as for spherical wrists, this can be used to help reduce
+        # closed from geometric inverse kinematics computation. 
+        final_transformation = SE3()
+        transformations = [final_transformation]
+        for i in range(3, len(self.dh_table)):
+            row = self.dh_table[i]
+            if row[0]:
+                transformation = SE3().Rz(0) * SE3().Tz(row[3]) * SE3().Tx(row[1]) * SE3().Rx(row[2])
+            else:
+                transformation = SE3().Rz(row[3]) * SE3().Tz(0) * SE3().Tx(row[1]) * SE3().Rx(row[2])#untested
+            final_transformation *= transformation
+            transformations.append(final_transformation.copy())
+        self.T_4_6_zero_joints = final_transformation
 
 
 
@@ -94,7 +105,6 @@ class DHKinematics:
         
         J = np.zeros((6, link))
         o_n = transformations[-1].t  # Position of end-effector
-
         for i in range(link):
             # For each link
             dh_row = self.dh_table[i]
@@ -162,3 +172,9 @@ class DHKinematics:
                 return q, f"Converged in {iters} iterations, final error: {error}"
             if iters > max_iterations:
                 return q, f"Was unable to converge, exited after {iters} iterations, final error was: {error}"
+
+
+
+
+
+

@@ -14,9 +14,9 @@ from kinematics import DHKinematics
 from kinematics import mini_bot_geometric_inverse
 from scipy.spatial.transform import Rotation as R, Slerp
 from typing import List
-
-
-def get_arc_path(start_pose: SE3, goal_pose: SE3, center: np.ndarray, speed: float, time_step: float) -> list[SE3]:
+from range_of_motion import get_neighbor
+range_of_motion_tolerance = 5
+def get_arc_path(start_pose: SE3, goal_pose: SE3, center: np.ndarray, speed: float, time_step: float, range_of_motion_tolerance = range_of_motion_tolerance) -> list[SE3]:
     """
     Generates a circular-arc trajectory of poses between a start pose and a goal pose in SE(3) space.
     The arc lies in the plane defined by start, goal, and the center point. Rotations are interpolated
@@ -49,7 +49,7 @@ def get_arc_path(start_pose: SE3, goal_pose: SE3, center: np.ndarray, speed: flo
     # Compute normal of the plane
     plane_normal = np.cross(r0, r1)
     norm_normal = np.linalg.norm(plane_normal)
-
+    
     # Handle colinear case: define diameter plane
     if np.isclose(norm_normal, 0):
         # Start and goal are opposite ends of a diameter -> angle pi
@@ -99,7 +99,7 @@ def get_arc_path(start_pose: SE3, goal_pose: SE3, center: np.ndarray, speed: flo
     path.append(goal_pose)
     return path
 
-def get_three_point_arc_path(start_pose: SE3, via_point: np.ndarray, goal_pose: SE3, speed: float, time_step: float) -> List[SE3]:
+def get_three_point_arc_path(start_pose: SE3, via_point: np.ndarray, goal_pose: SE3, speed: float, time_step: float, range_of_motion_tolerance = range_of_motion_tolerance) -> List[SE3]:
     """
     Generates a circular-arc trajectory in SE(3) passing through three positions: start, via, and goal.
     Orientations are interpolated simply between start_pose.R and goal_pose.R via SLERP.
@@ -196,7 +196,7 @@ def get_three_point_arc_path(start_pose: SE3, via_point: np.ndarray, goal_pose: 
 
 def get_hold_path(pose: SE3,
                   hold_time: float,
-                  time_step: float) -> list[SE3]:
+                  time_step: float,  range_of_motion_tolerance = range_of_motion_tolerance) -> list[SE3]:
     """
     Generates a hold trajectory by repeating the same SE3 pose for a specified duration.
 
@@ -216,7 +216,7 @@ def get_hold_path(pose: SE3,
     # Repeat the same pose
     return [pose for _ in range(num_steps + 1)]
 
-def get_linear_path(start_pose: SE3, goal_pose: SE3, speed, time_step)-> list[SE3]:
+def get_linear_path(start_pose: SE3, goal_pose: SE3, speed, time_step, range_of_motion_tolerance=range_of_motion_tolerance)-> list[SE3]:
     """
     Generates a straight-line trajectory of poses between a start pose and a goal pose in SE(3) space.
     The function computes intermediate poses that interpolate linearly in translation and rotationally 
@@ -235,6 +235,12 @@ def get_linear_path(start_pose: SE3, goal_pose: SE3, speed, time_step)-> list[SE
         - The goal pose is explicitly added at the end of the trajectory to ensure accuracy.
         - Rotations are interpolated using axis-angle representation, and translations are interpolated linearly.
     """
+    
+    distance, neighbor = get_neighbor(goal_pose.t)    
+    if distance > range_of_motion_tolerance:
+        # When we can't get here.
+        raise ValueError("Goal is outside range of motion!") 
+    
     # Now we need to compute our path. 
     # For now it will be just a straight line between
     path_vector_from_start = goal_pose.t - start_pose.t
@@ -257,6 +263,10 @@ def get_linear_path(start_pose: SE3, goal_pose: SE3, speed, time_step)-> list[SE
     distance_traveled = pose_linear_spacing
     while distance_traveled < path_length:
         t = start_pose.t + path_direction * distance_traveled
+        distance, point = get_neighbor(t) 
+        # if  distance > range_of_motion_tolerance:
+        #     t = point# If we are outside the range of motion, try and set the goal pose to the closest point in the range of motion and go along the outside of the range. 
+        #     print("Modifying path") 
         R_interp = slerp(distance_traveled).as_matrix()
         intermediate_poses.append(SE3().Rt(R_interp, t, check=False))
         distance_traveled += pose_linear_spacing
@@ -265,7 +275,7 @@ def get_linear_path(start_pose: SE3, goal_pose: SE3, speed, time_step)-> list[SE
     return intermediate_poses
 
 
-def get_directional_linear_path(start_pose: SE3, direction: np.ndarray, distance: float, speed: float, time_step: float) -> list[SE3]:
+def get_directional_linear_path(start_pose: SE3, direction: np.ndarray, distance: float, speed: float, time_step: float,  range_of_motion_tolerance = range_of_motion_tolerance) -> list[SE3]:
     """
     Generates a straight-line trajectory from the start_pose in a specified direction for a given distance.
     Utilizes the existing get_linear_path function by computing a goal pose offset along the direction vector.
@@ -290,12 +300,19 @@ def get_directional_linear_path(start_pose: SE3, direction: np.ndarray, distance
     # Compute goal translation
     start_t = start_pose.t
     goal_t = start_t + unit_dir * distance
+    # Determine if we can even get here
+    distance, neighbor = get_neighbor(goal_t)    
+    if distance > range_of_motion_tolerance:
+        # When we can't get here.
+        raise ValueError("Goal is outside range of motion!")
+
+
 
     # Create goal pose with same orientation as start
     goal_pose = SE3().Rt(start_pose.R, goal_t, check=False)
 
     # Generate linear path using existing function
-    return get_linear_path(start_pose, goal_pose, speed, time_step)
+    return get_linear_path(start_pose, goal_pose, speed, time_step, range_of_motion_tolerance)
 
 
 def get_joint_angles(desired_pose: SE3, kinematics: DHKinematics)-> np.ndarray:

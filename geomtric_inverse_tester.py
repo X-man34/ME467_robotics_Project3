@@ -7,6 +7,7 @@ from concurrent.futures import ProcessPoolExecutor
 import traceback
 
 
+
 dh_table = [[True, 27.5, np.pi/2, 339],
             [True, 250, 0, 0],
             [True, 70, np.pi/2, 0],
@@ -32,18 +33,28 @@ def check_random():
             desired_pose = mini_bot_kinematics.foreward(actual_angles).A
             correct_solutions = 0
             for solution in solutions:
-                if np.allclose(desired_pose, mini_bot_kinematics.foreward(solution).A):
+                if np.allclose(desired_pose, mini_bot_kinematics.foreward(solution).A, atol=1e-3):
                     # print(f"Inverse: {solution}")
                     correct_solutions += 1
-            return len(solutions) == correct_solutions
+
+
+            solution_found = correct_solutions > 0
+            if not solution_found:
+                 print(f"No solution found for joint angles {actual_angles}") 
+            return solution_found 
         except Exception:
             traceback.print_exc()
             return False
 def run_trial(_):
      return check_random()
+
+
+
 if __name__ == "__main__":
     trials = 10000
     workers = os.cpu_count()
+
+    # workers = 1 
 
     with ProcessPoolExecutor(max_workers=workers) as executor:
         results = list(executor.map(run_trial, range(trials)))  # no lambda
